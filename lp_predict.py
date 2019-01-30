@@ -378,7 +378,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 		if np.any(ever_observable):
 			#set the slew rate of telescope between sources
 			slew_rate = 1.2*u.deg/u.second
-			transitioner = Transitioner(slew_rate, {'program':{'default':30*u.second}})
+			transitioner = Transitioner(slew_rate)#, {'program':{'default':30*u.second}})
 			# set up the schedule for the night
 			prior_scheduler = PriorityScheduler(constraints = constraints,observer = jcmt,\
 				transitioner = transitioner)
