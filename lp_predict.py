@@ -51,7 +51,7 @@ def correct_msbs(LAPprograms,path_dir):
 	program_list=np.array(LAPprograms['projectid'])
 	for m in program_list:
 		print 'Correcting MSBs file for: ',m
-		msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
+		msbs=ascii.read(path_dir+'program_details_org/'+m.lower()+'-project-info.list')
 		remaining=LAPprograms['remaining_hrs'][np.where(LAPprograms['projectid']==m)[0][0]]
 		msb_remaining=np.sum(msbs['msb_total_hrs'])
 		diff= remaining - msb_remaining #negative is too much, + is too little
@@ -64,7 +64,7 @@ def correct_msbs(LAPprograms,path_dir):
 				[msbs['timeest'][0]],[(msbs['timeest'][0]*repeats)/3600.],[msbs['instrument'][0]],\
 				[msbs['type'][0]],[msbs['pol'][0]],[msbs['target'][0]],[msbs['ra2000'][0]],[msbs['dec2000'][0]],\
 				[msbs['taumin'][0]],[msbs['taumax'][0]]],\
-				path_dir+'program_details_sim/'+m.lower()+'-project-info.list', names=msbs.colnames)	
+				path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)	
 			else:
 				hrs_add=int(abs(diff)/np.max((msbs['timeest'][0]/3600.)))
 				remain=np.array(msbs['remaining'])
@@ -79,7 +79,7 @@ def correct_msbs(LAPprograms,path_dir):
 				msbs['timeest'],(msbs['timeest']*remain)/3600.,msbs['instrument'],\
 				msbs['type'],msbs['pol'],msbs['target'],msbs['ra2000'],msbs['dec2000'],\
 				msbs['taumin'],msbs['taumax']],\
-				path_dir+'program_details_sim/'+m.lower()+'-project-info.list', names=msbs.colnames)
+				path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)
 
 def transform_blocks(blocks_file):
 	'''Reads in observing blocks data file. We make sure to properly deal with the irregular observing blocks data file,
@@ -428,6 +428,9 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 						total_observed[prog.upper()]=total_observed[prog.upper()]+tim_used
 						if prog=='m16al001':
 							 m16al001_tally[tar].append(Time(obs_mjd[k],format='mjd',scale='utc'))
+		else:
+			WBand=get_wband(tau_mjd[k])
+			unused_tally[WBand].append(unused)
 	return total_observed,m16al001_tally,unused_tally
 
 ###########################
@@ -451,9 +454,6 @@ HARP_unavailable=[]
 RU_unavailable=np.arange(58484,58574)
 ###########################
 
-#empty out simulations folder and add current program files
-os.system('rm -rf '+path_dir+'program_details_sim/*.list')
-os.system('cp -r '+path_dir+'program_details_org/*.list '+path_dir+'program_details_sim')
 
 #read in large program details and correct MSBs
 LAPprograms=ascii.read(LAPprograms_file)
@@ -463,6 +463,9 @@ print LAPprograms, '\n'
 RH=LAPprograms['projectid','remaining_hrs','allocated_hrs']
 program_list=np.array(LAPprograms['projectid'])
 correct_msbs(LAPprograms,path_dir)
+#empty out simulations folder and add current program files
+os.system('rm -rf '+path_dir+'program_details_sim/*.list')
+os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_details_sim')
 
 print 'Predicting Large Program observations between '+sim_start+' and '+sim_end+' ...\n'
 
