@@ -244,7 +244,7 @@ def get_wband(tau):
 
 
 def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total_observed,FP,m16al001_tally,\
-	SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,unused_tally,cal_tally,tot_tally):
+	SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,unused_tally):
 	'''Simulates observations of Large Programs over specified observing block'''
 
 	#fetch wvm data from previous year(s)
@@ -395,8 +395,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			unused=np.sum(np.array(sched['duration (minutes)'][np.where(sched['target']=='Unused Time')[0]]))/60.
 			WBand=get_wband(tau_mjd[k])
 			unused_tally[WBand].append(unused)
-			caltime=np.sum(np.array(sched['duration (minutes)'])[[p for p,n in enumerate(np.array(sched['target'])) if n in names]])/60.
-			cal_tally.append(caltime)
+			#caltime=np.sum(np.array(sched['duration (minutes)'])[[p for p,n in enumerate(np.array(sched['target'])) if n in names]])/60.
+			#cal_tally.append(caltime)
 			
 			#FOR TESTING ONLY--
 			#
@@ -428,7 +428,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 						total_observed[prog.upper()]=total_observed[prog.upper()]+tim_used
 						if prog=='m16al001':
 							 m16al001_tally[tar].append(Time(obs_mjd[k],format='mjd',scale='utc'))
-	return total_observed,m16al001_tally,unused_tally,cal_tally,tot_tally
+	return total_observed,m16al001_tally,unused_tally
 
 ###########################
 #User Input
@@ -474,11 +474,9 @@ OurBlocks,firstprog=calc_blocks(Blocks,sim_start,sim_end)
 total_observed = {k:v for k,v in zip(program_list,np.zeros(len(program_list)))}
 m16al001_tally=defaultdict(list)
 unused_tally=defaultdict(list)
-cal_tally=[]
-tot_tally=[]
 for jj in range(0,len(OurBlocks)):
 	FP=firstprog[jj]
-	total_observed,m16al001_tally,unused_tally,cal_tally,tot_tally=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,unused_tally,cal_tally,tot_tally)
+	total_observed,m16al001_tally,unused_tally,cal_tally,tot_tally=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,unused_tally)
 
 #calculate final results
 obs_hrs=[]
@@ -495,10 +493,10 @@ print 'Final Prediction Results...\n'
 print new
 
 #optionally print out month/year combos that each source in m16al001 was observed
-print 'M16AL001 Tally:\n'
-for key in m16al001_tally.keys():
-	print key
-	print [(i.datetime.month,i.datetime.year) for i in m16al001_tally[key]]
+#print 'M16AL001 Tally:\n'
+#for key in m16al001_tally.keys():
+	#print key
+	#print [(i.datetime.month,i.datetime.year) for i in m16al001_tally[key]]
 
 #print unused time tally to file and screen
 ascii.write([unused_tally.keys(),[round(np.sum(unused_tally[i]),2) for i in unused_tally.keys()]],path_dir+'sim_results/unused_tally.txt',\
