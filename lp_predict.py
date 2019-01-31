@@ -12,8 +12,8 @@ INPUT: (1) sim_start: proposed start date
 	   (6) Observing blocks for large programs file (with start/end dates of each scheduled program block)
 
 OUTPUT: (1) File summary of results; detailing the predicted number of hours observed for each project,
-			and the hours predicted to be still remaining in each program.
-		(2) Dictionary keeping track of unused time in each weather band.
+        and the hours predicted to be still remaining in each program.
+        (2) Dictionary keeping track of unused time in each weather band.
 
 NOTES: - If you are running this script on an EAO computer, you can use the 'fetch' option to get the wvm data.
 Otherwise you must provide a wvm data file (csv format,4 columns:isoTime,mean,median,count) obtained from running
@@ -462,6 +462,7 @@ print 'Current Large programs:\n'
 print LAPprograms, '\n'
 RH=LAPprograms['projectid','remaining_hrs','allocated_hrs']
 program_list=np.array(LAPprograms['projectid'])
+#correct MSBs
 correct_msbs(LAPprograms,path_dir)
 #empty out simulations folder and add current program files
 os.system('rm -rf '+path_dir+'program_details_sim/*.list')
