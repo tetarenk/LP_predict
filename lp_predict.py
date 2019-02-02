@@ -44,6 +44,7 @@ from astroplan.plots import plot_schedule_airmass
 import os
 from collections import defaultdict
 from getwvm import get_wvm_fromdisk, get_sampled_values
+import time
 
 def correct_msbs(LAPprograms,path_dir):
 	'''Corrects and simplifies MSB files to ensure that the total time of all MSBs matches the
@@ -82,6 +83,7 @@ def correct_msbs(LAPprograms,path_dir):
 				msbs['type'],msbs['pol'],msbs['target'],msbs['ra2000'],msbs['dec2000'],\
 				msbs['taumin'],msbs['taumax']],\
 				path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)
+	print '\n'
 
 def time_remain_p_weatherband(LAPprograms,path_dir):
 	program_list=np.array(LAPprograms['projectid'])
@@ -335,8 +337,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 									priority.append(2)
 								else:
 									priority.append(LAPprograms['tagpriority'][np.where(LAPprograms['projectid']==m)[0]])
-									msb_time.append(obs_time_table['timeest'][j]*u.second)
-									prog.append(m.lower())
+								msb_time.append(obs_time_table['timeest'][j]*u.second)
+								prog.append(m.lower())
 							else:
 								#then if present, check if the target has been observed in the current nights month/year combo yet
 								if not any(dates_obs):
@@ -347,8 +349,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 										priority.append(2)
 									else:
 										priority.append(LAPprograms['tagpriority'][np.where(LAPprograms['projectid']==m)[0]])
-										msb_time.append(obs_time_table['timeest'][j]*u.second)
-										prog.append(m.lower())
+									msb_time.append(obs_time_table['timeest'][j]*u.second)
+									prog.append(m.lower())
 		#check if at least one target has been added to our potential target list
 		if len(targets)>0:
 			#check at least one potential target is observable at some point in the night
@@ -454,6 +456,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 ###########################
 #User Input
 ###########################
+start=time.time()
 #path_dir='/Users/atetarenko/Desktop/Support_Scientist_Work/LargeP_predict_model/'
 path_dir='/export/data2/atetarenko/LP_predict/'
 
@@ -499,7 +502,7 @@ tot_tally=[]
 nothing_obs=[]
 for jj in range(0,len(OurBlocks)):
 	FP=firstprog[jj]
-	total_observed,m16al001_tally,unused_tally,cal_tally,tot_tally=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,unused_tally,cal_tally,tot_tally,nothing_obs)
+	total_observed,m16al001_tally,unused_tally,cal_tally,tot_tally,nothing_obs=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,unused_tally,cal_tally,tot_tally,nothing_obs)
 
 #calculate final results
 obs_hrs=[]
@@ -510,15 +513,25 @@ for i in range(0,len(program_list)):
 
 #write final results to a file and screen
 ascii.write([RH['projectid'],RH['allocated_hrs'],RH['remaining_hrs'],obs_hrs,remaining_new],\
-	path_dir+'sim_results/results.txt', names=['projectid','remaining_hrs','allocted_hrs','sim_obs_hrs'])
-ascii.write()
+	path_dir+'sim_results/results.txt', names=['projectid','allocted_hrs','remaining_hrs','sim_obs_hrs','remaining_aftersim'])
+
 new=ascii.read(path_dir+'sim_results/results.txt')
 print 'Final Prediction Results...\n'
 print new
-print "Total Allocated Hrs for Large Programs: ",np.sum(RH['allocated_hrs'])
-print "Total Observed Hrs for Large Programs in Simulation: ",np.sum(obs_hrs) 
-print "Total Remaining Hrs for Large Programs after Simulation: ",np.sum(remaining_new)
-print "Total Hrs Available for Large Program Observing in Simulation:", np.sum(tot_tally)
+#append totals to results file and print to screen
+fileo=open(path_dir+'sim_results/results.txt','a')
+fileo.write("\nTotal Allocated Hrs for Large Programs: "+str(round(np.sum(RH['allocated_hrs']),2))+'\n')
+fileo.write("Total Remaining Hrs for Large Programs before Simulation: "+str(round(np.sum(RH['remaining_hrs']),2))+'\n')
+fileo.write("Total Hrs Available for Large Program Observing in Simulation:"+str(round(np.sum(tot_tally),2))+'\n')
+fileo.write("Total Observed Hrs for Large Programs in Simulation: "+str(round(np.sum(obs_hrs),2))+'\n')
+fileo.write("Total Remaining Hrs for Large Programs after Simulation: "+str(round(np.sum(remaining_new),2))+'\n')
+fileo.close()
+print "Total Allocated Hrs for Large Programs: ",round(np.sum(RH['allocated_hrs']),2)
+print "Total Remaining Hrs for Large Programs before Simulation: ",round(np.sum(RH['remaining_hrs']),2)
+print "Total Hrs Available for Large Program Observing in Simulation:", round(np.sum(tot_tally),2)
+print "Total Observed Hrs for Large Programs in Simulation: ",round(np.sum(obs_hrs),2)
+print "Total Remaining Hrs for Large Programs after Simulation: ",round(np.sum(remaining_new),2)
+
 
 #write remaining hrs in each program split by weather band to a file
 time_remain_p_weatherband(LAPprograms,path_dir)
@@ -536,4 +549,6 @@ unused_vals=ascii.read(path_dir+'sim_results/unused_tally.txt')
 print 'Unused Time Tally:\n'
 unused_vals.sort('WeatherBand')
 print unused_vals
-print "Total Hrs from nights where nothing was observed:", np.sum(nothing_obs)
+print "Total Hrs lost to weather (i.e., nights where nothing observed):", np.sum(nothing_obs)
+end=time.time()
+print 'Code took: ', (end-start), ' to run'
