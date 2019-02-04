@@ -21,7 +21,7 @@ the partner script, getwvm.py, on an EAO computer.
 - Uses the following python packages: astropy,astroplan
 
 Written by: Alex J. Tetarenko
-Last Updated: Jan 28, 2019
+Last Updated: Feb 1, 2019
 '''
 
 #packages to import
@@ -525,12 +525,14 @@ fileo.write("Total Remaining Hrs for Large Programs before Simulation: "+str(rou
 fileo.write("Total Hrs Available for Large Program Observing in Simulation:"+str(round(np.sum(tot_tally),2))+'\n')
 fileo.write("Total Observed Hrs for Large Programs in Simulation: "+str(round(np.sum(obs_hrs),2))+'\n')
 fileo.write("Total Remaining Hrs for Large Programs after Simulation: "+str(round(np.sum(remaining_new),2))+'\n')
+fileo.write("Total Hrs lost to weather (i.e., nights where nothing observed):"+str(np.sum(nothing_obs))+'\n')
 fileo.close()
 print "Total Allocated Hrs for Large Programs: ",round(np.sum(RH['allocated_hrs']),2)
 print "Total Remaining Hrs for Large Programs before Simulation: ",round(np.sum(RH['remaining_hrs']),2)
 print "Total Hrs Available for Large Program Observing in Simulation:", round(np.sum(tot_tally),2)
 print "Total Observed Hrs for Large Programs in Simulation: ",round(np.sum(obs_hrs),2)
 print "Total Remaining Hrs for Large Programs after Simulation: ",round(np.sum(remaining_new),2)
+print "Total Hrs lost to weather (i.e., nights where nothing observed):", np.sum(nothing_obs)
 
 
 #write remaining hrs in each program split by weather band to a file
@@ -549,6 +551,5 @@ unused_vals=ascii.read(path_dir+'sim_results/unused_tally.txt')
 print 'Unused Time Tally:\n'
 unused_vals.sort('WeatherBand')
 print unused_vals
-print "Total Hrs lost to weather (i.e., nights where nothing observed):", np.sum(nothing_obs)
 end=time.time()
 print 'Code took: ', (end-start), ' to run'
