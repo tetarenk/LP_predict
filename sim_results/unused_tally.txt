@@ -1,6 +1,0 @@
-WeatherBand UnusedTime
-"Band 3" 124.79
-"Band 2" 39.37
-"Band 1" 173.61
-"Band 5" 430.3
-"Band 4" 281.86
