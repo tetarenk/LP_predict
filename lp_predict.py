@@ -30,6 +30,7 @@ import math as ma
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rc
+from matplotlib.ticker import AutoMinorLocator
 import matplotlib as mpl
 import datetime as datetime
 from astropy import units as u
@@ -75,11 +76,12 @@ def correct_msbs(LAPprograms,path_dir):
 				remain=np.array(msbs['remaining'])
 				while hrs_add >0:
 					for i in range(0,len(msbs['target'])):
-						if hrs_add>0:
+						if hrs_add>0 and remain[i]>0:
 							remain[i]=remain[i]+np.sign(diff)
+							hrs_add=hrs_add-1
 						else:
 							remain[i]=remain[i]
-						hrs_add=hrs_add-1
+							hrs_add=hrs_add
 				ascii.write([msbs['projectid'],msbs['msbid'],remain,msbs['obscount'],\
 				msbs['timeest'],(msbs['timeest']*remain)/3600.,msbs['instrument'],\
 				msbs['type'],msbs['pol'],msbs['target'],msbs['ra2000'],msbs['dec2000'],\
@@ -199,8 +201,10 @@ def get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile=''):
 	if flag=='fetch':
 		hoursstart=4#6pmHST
 		hoursend=16#6amHST
+		sim_years=9
 		prev_years=Time(sim_start,format='iso').datetime.year-sim_years
 		prev_yeare=Time(sim_end,format='iso').datetime.year-sim_years
+		print prev_years
 		startdatewvm=Time(str(prev_years)+'-'+sim_start.split('-')[1]+'-'+sim_start.split('-')[2],format='iso').datetime
 		enddatewvm=Time(str(prev_yeare)+'-'+'12-31',format='iso').datetime
 		wvmvalues=get_wvm_fromdisk(startdatewvm,enddatewvm)
@@ -374,7 +378,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 		#check if at least one target has been added to our potential target list
 		if len(targets)>0:
 			#check at least one potential target is observable at some point in the night
-			ever_observable = is_observable(constraints, jcmt, targets, time_range=time_range)
+			ever_observable = is_observable(constraints, jcmt, targets, time_range=time_range,time_grid_resolution=0.75*u.hour)
+			frac_obs=observability_table(constraints, jcmt, targets, time_range=time_range,time_grid_resolution=0.75*u.hour)['fraction of time observable']
 			#pick a HARP, SCUBA-2, and pointing calibrator for each half-night, and add to target list
 			#calibrators are chosen based on observability each half-night
 			callst1,names1,callst2,names2=pick_cals(obs_mjd[k],obsn,path_dir)
@@ -412,9 +417,10 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 					elif ii==2:
 						prog.append('Pointing/Focus cal')							
 		else:
-			ever_observable = False
+			ever_observable = [False]
+			frac_obs=[0.]
 		#As long as we have an observable target, we proceed to scheduling for the night.
-		if np.any(ever_observable):
+		if np.any(ever_observable) and any(frac>=0.75/obsn for frac in frac_obs):
 			#set the slew rate of telescope between sources
 			slew_rate = 1.2*u.deg/u.second
 			transitioner = Transitioner(slew_rate)#, {'program':{'default':30*u.second}})
@@ -443,17 +449,17 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			lst_tally[WBand].extend(lst_list)
 			wb_usage_tally['Unused'][WBand].append(unused)
 			caltime=np.sum(np.array(sched['duration (minutes)'])[[p for p,n in enumerate(np.array(sched['target'])) if n in names]])/60.
+			wb_usage_tally['Cal'][WBand].append(caltime)
 			cal_tally.append(caltime)
 			#FOR TESTING ONLY--
 			#print unused,caltime
 			'''plt.figure(figsize = (14,6))
-			plot_schedule_airmass(priority_schedule)
-			plt.legend(loc = "upper right",ncol=3)
+			plot_schedule_airmass(priority_schedule,show_night=True)
+			plt.legend(loc = "upper right",ncol=3,fontsize=10,bbox_to_anchor=(1.1,0.8))
 			plt.show()
 			plt.figure()
 			plt.hist([np.mean(i) for i in lst_tally['Band 1']],bins=10,color='b',alpha=0.6)
 			plt.show()
-			print sched['start time (UTC)']
 			raw_input('stop')'''
 
 			#record what targets have been observed, updating the MSB files and recording total time observed for each program
@@ -482,6 +488,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 		else:
 			WBand=get_wband(tau_mjd[k])
 			wb_usage_tally['Unused'][WBand].append(obsn)
+			wb_usage_tally['Used'][WBand].append(0.)
 			nothing_obs.append(obsn)
 	return total_observed,m16al001_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally
 
@@ -515,6 +522,7 @@ print LAPprograms, '\n'
 RH=LAPprograms['projectid','remaining_hrs','allocated_hrs']
 program_list=np.array(LAPprograms['projectid'])
 correct_msbs(LAPprograms,path_dir)
+
 #empty out simulations folder and add current program files
 os.system('rm -rf '+path_dir+'program_details_sim/*.list')
 os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_details_sim')
@@ -528,7 +536,7 @@ OurBlocks,firstprog=calc_blocks(Blocks,sim_start,sim_end)
 #run observation simulator for each observing block
 total_observed = {k:v for k,v in zip(program_list,np.zeros(len(program_list)))}
 m16al001_tally=defaultdict(list)
-wb_usage_tally={'Available':defaultdict(list),'Used':defaultdict(list),'Unused':defaultdict(list)}
+wb_usage_tally={'Available':defaultdict(list),'Used':defaultdict(list),'Unused':defaultdict(list),'Cal':defaultdict(list)}
 lst_tally=defaultdict(list)
 cal_tally=[]
 tot_tally=[]
@@ -543,7 +551,8 @@ remaining_new=[]
 for i in range(0,len(program_list)):
 	remaining_new.append(round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2))
 	obs_hrs.append(round(total_observed[program_list[i].upper()],2))
-
+#because MSB times are not always an exact match to total allocated time, if remaining time less than 30min then set remaining time to 0
+[0 if i<0.5 else i for i in remaining_new]
 #write final results to a file and screen
 ascii.write([RH['projectid'],RH['allocated_hrs'],RH['remaining_hrs'],obs_hrs,remaining_new],\
 	path_dir+'sim_results/results.txt', names=['projectid','allocted_hrs','remaining_hrs','sim_obs_hrs','remaining_aftersim'])
@@ -582,9 +591,10 @@ print "Total Hrs lost to weather (i.e., nights where nothing observed):", np.sum
 #print weather band time tally to file and screen
 ascii.write([wb_usage_tally['Available'].keys(),[round(np.sum(wb_usage_tally['Available'][j]),2) for j in wb_usage_tally['Available'].keys()],\
 	[round(np.sum(wb_usage_tally['Used'][j]),2) for j in wb_usage_tally['Used'].keys()],\
-	[round(np.sum(wb_usage_tally['Unused'][j]),2) for j in wb_usage_tally['Unused'].keys()]],\
+	[round(np.sum(wb_usage_tally['Unused'][j]),2) for j in wb_usage_tally['Unused'].keys()],\
+	[round(np.sum(wb_usage_tally['Cal'][j]),2) for j in wb_usage_tally['Cal'].keys()]],\
 	path_dir+'sim_results/wb_usage_tally.txt',\
-	names=['WeatherBand','AvailableTime','UsedTime','UnusedTime'])
+	names=['WeatherBand','AvailableTime','UsedTime','UnusedTime','Cal'])
 wbtally_vals=ascii.read(path_dir+'sim_results/wb_usage_tally.txt')
 print 'Weather Band Time Tally:\n'
 wbtally_vals.sort('WeatherBand')
@@ -596,13 +606,23 @@ font={'family':'serif','weight':'bold','size' : '14'}
 rc('font',**font)
 mpl.rcParams['xtick.direction']='in'
 mpl.rcParams['ytick.direction']='in'
+colors=['b','g','r','orange','purple']
+bands=['Band 1','Band 2', 'Band 3', 'Band 4', 'Band 5']
 ax0=plt.subplot(111)
-for i in range(0,len(lst_tally.keys())):
+for i in range(0,len(bands)):
 	ax=plt.subplot(3,2,i+1)
-	ax.hist([np.mean(j) for j in lst_tally[lst_tally.keys()[i]]],bins=10,color='b',alpha=0.6)
-	ax.set_title(lst_tally.keys()[i],fontsize=14)
-fig.subplots_adjust(wspace=0.5,hspace=0.5)
-plt.savefig(path_dir+'unused_RA.png')
+	ax.hist([np.mean(j) for j in lst_tally[bands[i]]],bins=20,color=colors[i],alpha=0.6)
+	ax.set_title(bands[i],fontsize=12)
+	ax.set_xlabel('LST',fontsize=12)
+	ax.tick_params(axis='x',which='major', labelsize=10,length=7,width=1.5,top='on',bottom='on')
+	ax.tick_params(axis='x',which='minor', labelsize=10,length=3,width=1,top='on',bottom='on')
+	ax.tick_params(axis='y',which='major', labelsize=10,length=7,width=1.5,right='on',left='on')
+	ax.tick_params(axis='y',which='minor', labelsize=10,length=3,width=1,right='on',left='on')
+	ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+	ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+	#plt.setp(ax.get_yticklabels(), visible=False)
+fig.subplots_adjust(wspace=0.5,hspace=1)
+plt.savefig(path_dir+'sim_results/unused_RA.png')
 plt.show()
 
 
