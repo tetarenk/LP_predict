@@ -21,17 +21,18 @@ the partner script, getwvm.py, on an EAO computer.
 - Uses the following python packages: astropy,astroplan
 
 Written by: Alex J. Tetarenko
-Last Updated: Feb 5, 2019
+Last Updated: Feb 26, 2019
 '''
 
 #packages to import
 import numpy as np
 import math as ma
 import pandas as pd
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from matplotlib.ticker import AutoMinorLocator
-import matplotlib as mpl
 import datetime as datetime
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -212,7 +213,7 @@ def get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile=''):
 	if flag=='fetch':
 		hoursstart=4#6pmHST
 		hoursend=16#6amHST
-		#sim_years=9
+		#sim_years=6
 		prev_years=Time(sim_start,format='iso').datetime.year-sim_years
 		prev_yeare=Time(sim_end,format='iso').datetime.year-sim_years
 		print prev_years
@@ -238,7 +239,7 @@ def get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile=''):
 	ind_start=np.where(mjd==Time(sim_start, format='iso', scale='utc').mjd)[0][0]
 	ind_end=np.where(mjd==Time(sim_end, format='iso', scale='utc').mjd)[0][0]
 	tau_predict=tau[ind_start:ind_end]
-	tau_predict.fill_value = 0.5
+	tau_predict.fill_value = 0.2
 	tau_predict_fill=tau_predict.filled()
 	return(mjd_predict,tau_predict_fill)
 
@@ -294,6 +295,22 @@ def get_lst(sched,unused_ind,jcmt):
 		lst_list.append((Time(start[i],format='iso',scale='utc',location=(jcmt.location.longitude,jcmt.location.latitude)).sidereal_time('apparent').value,\
 			Time(end[i],format='iso',scale='utc',location=(jcmt.location.longitude,jcmt.location.latitude)).sidereal_time('apparent').value))
 	return(lst_list)
+
+def priority_choose(tau,m,tau_max,FP,LAPprograms):
+	#priority goes (1) calibrators, (2) block program, (3) weather band, (4) overall priority
+	tab=LAPprograms['projectid','tagpriority']
+	tab['scaled_p']=[i for i in range(1,len(LAPprograms['projectid'])+1)]
+	p=tab['scaled_p'][np.where(tab['projectid']==m)[0]]
+	WBandDay=int(get_wband(tau).split(' ')[1])
+	WBandTar=int(get_wband(tau_max).split(' ')[1])
+	if m.lower() in FP:
+		priority=2
+	else:
+		if WBandDay==WBandTar:
+			priority=3+p
+ 		else:
+			priority=(2*len(LAPprograms['projectid'])+WBandTar+3)+p
+	return priority
 
 def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total_observed,FP,m16al001_tally,\
 	SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally):
@@ -352,12 +369,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 								targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 								tc.append(TimeConstraint(time_range[0], time_range[1]))
-								#targets in the program that is assigned the current block get highest priority (2), except for calibrators below (1)
-								if m.lower() in FP:
-									priority.append(2)
-								else:
-									#other targets get asssigned overall program priority
-									priority.append(LAPprograms['tagpriority'][np.where(LAPprograms['projectid']==m)[0]])
+								#assign priority
+								priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],FP,LAPprograms))
 								msb_time.append(obs_time_table['timeest'][j]*u.second)
 								prog.append(m.lower())
 						else:
@@ -368,10 +381,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 								targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 								tc.append(TimeConstraint(time_range[0], time_range[1]))
-								if m.lower() in FP:
-									priority.append(2)
-								else:
-									priority.append(LAPprograms['tagpriority'][np.where(LAPprograms['projectid']==m)[0]])
+								#assign priority
+								priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],FP,LAPprograms))
 								msb_time.append(get_m16al001_time(tau_mjd[k])*u.second)
 								prog.append(m.lower())
 							else:
@@ -380,10 +391,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 									targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 										dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 									tc.append(TimeConstraint(time_range[0], time_range[1]))
-									if m.lower() in FP:
-										priority.append(2)
-									else:
-										priority.append(LAPprograms['tagpriority'][np.where(LAPprograms['projectid']==m)[0]])
+									#assign priority
+									priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],FP,LAPprograms))
 									msb_time.append(get_m16al001_time(tau_mjd[k])*u.second)
 									prog.append(m.lower())
 		#check if at least one target has been added to our potential target list
@@ -464,11 +473,12 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			cal_tally.append(caltime)
 			#FOR TESTING ONLY--
 			#print unused,caltime
-			'''plt.figure(figsize = (14,6))
+			plt.figure(figsize = (14,6))
 			plot_schedule_airmass(priority_schedule,show_night=True)
 			plt.legend(loc = "upper right",ncol=3,fontsize=10,bbox_to_anchor=(1.1,0.8))
-			plt.show()
-			plt.figure()
+			plt.savefig(path_dir+'sim_results/schedules/'+namemjd+'.png',bbox_tight='inches')
+			plt.close()
+			'''plt.figure()
 			plt.hist([np.mean(i) for i in lst_tally['Band 1']],bins=10,color='b',alpha=0.6)
 			plt.show()
 			raw_input('stop')'''
@@ -514,7 +524,7 @@ start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
 sim_start='2019-01-01'
-sim_end='2019-01-08'
+sim_end='2019-02-01'
 
 flag='fetch'#'file' or 'fetch' if you are on EAO computer
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
