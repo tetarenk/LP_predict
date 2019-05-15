@@ -23,7 +23,7 @@ the partner script, getwvm.py, on an EAO computer.
 - Uses the following python packages: astropy, astroplan, matplotlib, numpy
 
 Written by: Alex J. Tetarenko
-Last Updated: Apr 26, 2019
+Last Updated: May 15, 2019
 '''
 
 #packages to import
@@ -42,7 +42,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
 from astropy.table import Table
-from astropy.time import Time
+from astropy.time import Time,TimeDelta
 import warnings
 warnings.filterwarnings('ignore')
 from astroplan import Observer, FixedTarget, AltitudeConstraint, is_observable, ObservingBlock, observability_table
@@ -57,6 +57,7 @@ import time
 
 
 def sort_blocks(blocks):
+	''' Sort observing blocks in priority order'''
 	bs=[]
 	for b in blocks:
 		if type(b.priority) is int or type(b.priority) is float:
@@ -70,11 +71,9 @@ def sort_blocks(blocks):
 	return(blocks_sorted)
 
 class JCMTScheduler(Scheduler):
-    """
-    A scheduler that does "stupid simple sequential scheduling".  That is, it
-    simply looks at all the blocks, picks the best one, schedules it, and then
-    moves on.
-    """
+    '''A scheduler that does simple sequential scheduling.  That is, it starts at the beginning of the night,
+    looks at all the blocks (sorted in priority order), picks the best one, schedules it, and thenmoves on.
+    NOTE: This is just the astroplan SequentialScheduler with the addition of sorted observing blocks as input.'''
 
     def __init__(self, *args, **kwargs):
         super(JCMTScheduler, self).__init__(*args, **kwargs)
@@ -176,6 +175,44 @@ def correct_msbs(LAPprograms,path_dir):
 	for m in program_list:
 		msbs=ascii.read(path_dir+'program_details_org/'+m.lower()+'-project-info.list')
 		remaining=LAPprograms['remaining_hrs'][np.where(LAPprograms['projectid']==m)[0][0]]
+		#check no target repeats first
+		cor=[(float(i),float(j)) for i,j in zip(msbs['ra2000'],msbs['dec2000'])]
+		unique_srcs=list(set(cor))
+		projid=[]
+		msbid=[]
+		remain=[]
+		obsc=[]
+		timeest=[]
+		inst=[]
+		ty=[]
+		pol=[]
+		targ=[]
+		tmin=[]
+		tmax=[]
+		for src in unique_srcs:
+			ind0=np.where(np.logical_and(src[0]==msbs['ra2000'],src[1]==msbs['dec2000']))[0][0]
+			projid.append(msbs['projectid'][ind0])
+			msbid.append(msbs['msbid'][ind0])
+			inst.append(msbs['instrument'][ind0])
+			ty.append(msbs['type'][ind0])
+			pol.append(msbs['pol'][ind0])
+			tmin.append(msbs['taumin'][ind0])
+			tmax.append(msbs['taumax'][ind0])
+			targ.append(msbs['target'][ind0])
+			timeest.append(msbs['timeest'][ind0])
+			re=[]
+			ob=[]
+			for i in range(0,len(msbs['ra2000'])):
+				if msbs['ra2000'][i]==src[0] and msbs['dec2000'][i]==src[1]:
+					re.append(msbs['remaining'][i])
+					ob.append(msbs['obscount'][i])
+			remain.append(np.sum(re))
+			obsc.append(np.sum(ob))
+		ascii.write([projid,msbid,remain,obsc,timeest,(np.array(timeest)*np.array(remain))/3600.,inst,\
+			ty,pol,targ,[src[0] for src in unique_srcs], [src[1] for src in unique_srcs],tmin,tmax],\
+			path_dir+'program_details_fix/'+m.lower()+'-project-info.list',names=msbs.colnames)
+		#now start with fixed msb file to check time allocation matches msb times
+		msbs=ascii.read(path_dir+'program_details_fix/'+m.lower()+'-project-info.list')
 		msb_remaining=np.sum(msbs['msb_total_hrs'])
 		diff= remaining - msb_remaining #negative is too much, + is too little
 		print 'Correcting MSBs file for: ',m,' --> Time difference =', round(diff,2)
@@ -209,6 +246,7 @@ def correct_msbs(LAPprograms,path_dir):
 	print '\n'
 
 def time_remain_p_weatherband(LAPprograms,path_dir):
+	'''Calculates remaining time per weather band for each program after the simulation has run.'''
 	program_list=np.array(LAPprograms['projectid'])
 	fileo=open(path_dir+'sim_results/results_wb.txt','w')
 	for m in program_list:
@@ -317,6 +355,7 @@ def get_cal_times(obsn,day,half):
 		arr.append(TimeConstraint(time_range[0], time_range[1]))
 	return(arr)
 def get_time_blocks(obsn,day,jcmt):
+	'''Converts UT time blocks to LST blocks.'''
 	lst_list=[]
 	st0=Time(Time((day+1), format='mjd', scale='utc').iso.split(' ')[0]+" 03:30")
 	st1=Time(Time((day+1), format='mjd', scale='utc').iso.split(' ')[0]+" 04:30")
@@ -334,7 +373,7 @@ def get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile=''):
 	if flag=='fetch':
 		hoursstart=4#6pmHST
 		hoursend=16#6amHST
-		#sim_years=9
+		#sim_years=4
 		prev_years=Time(sim_start,format='iso').datetime.year-sim_years
 		prev_yeare=Time(sim_end,format='iso').datetime.year-sim_years
 		print prev_years
@@ -388,6 +427,7 @@ def bad_block(instrument,SCUBA_2_unavailable,HARP_unavailable,UU_unavailable):
 	return checklst
 
 def get_wband(tau):
+	'''Matches tau values to a weather band.'''
 	if tau<=0.05:
 		wb='Band 1'
 	elif tau<=0.08 and tau>0.05:
@@ -401,6 +441,8 @@ def get_wband(tau):
 	return(wb)
 
 def get_m16al001_time(tau):
+	'''M16AL001 MSBs can be run in diferent weather bands, and the MSB files only reflect Band 3 time.
+	Here we select the proper MSB time depending on the weather band for the night.'''
 	if tau<=0.05:
 		time=1320.
 	elif tau<=0.08 and tau>0.05:
@@ -409,6 +451,7 @@ def get_m16al001_time(tau):
 		time=2520.
 	return(time)
 def get_lst(sched,unused_ind,jcmt):
+	'''Converts UT times of unused blocks in a schdule to LST times.'''
 	lst_list=[]
 	start=sched['start time (UTC)'][unused_ind]
 	end=sched['end time (UTC)'][unused_ind]
@@ -418,6 +461,7 @@ def get_lst(sched,unused_ind,jcmt):
 	return(lst_list)
 
 def priority_choose(tau,m,tau_max,FP,LAPprograms):
+	'''Calculates scaled priorities of a MSBs.'''
 	#priority goes (1) calibrators, (2) block program, (3) weather band, (4) overall priority
 	tab=LAPprograms['projectid','tagpriority']
 	tab['scaled_p']=[i for i in range(1,len(LAPprograms['projectid'])+1)]
@@ -433,6 +477,7 @@ def priority_choose(tau,m,tau_max,FP,LAPprograms):
 			priority=(2*len(LAPprograms['projectid'])+WBandTar+3)+p
 	return priority
 def bin_lst(bin_start,bin_end,lst_tally):
+    '''Bins LST blocks.'''
     bin_hrs=np.zeros(len(bin_start))
     for i in range(0,len(bin_start)):
         for j in range(0,len(lst_tally)):
@@ -444,6 +489,8 @@ def bin_lst(bin_start,bin_end,lst_tally):
                 bin_hrs[i]=bin_hrs[i]+(lst_tally[j][1]-bin_start[i])
     return(bin_hrs)
 def elevationcheck(jcmt,mjd,target):
+	'''M17BL002 has low elevation sources, so this checks if they transit below 40 deg, and adjusts elevation limit to 15 deg
+	for these sources.'''
 	date=Time(mjd,format='mjd').iso.split(' ')[0]
 	airmass=jcmt.altaz(Time(date)+np.linspace(-12,12,100)*u.hour,target).secz
 	amin=np.min(airmass[airmass>1]).value
@@ -513,7 +560,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 								targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 								tc.append(TimeConstraint(time_range[0], time_range[1]))
-								#if in M17BL002, and transits below 40 deg, set the elevation limit to 10 rather than 30 for the target so it is observed
+								#if in M17BL002, and transits below 40 deg, set the elevation limit to 15 rather than 30 for the target so it is observed
 								if m == 'M17BL002':
 									el=elevationcheck(jcmt,obs_mjd[k],FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 									ta.append(AltitudeConstraint(min=el*u.deg))
@@ -558,6 +605,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			ever_observable = is_observable([AltitudeConstraint(min=30*u.deg)], jcmt, targets, time_range=time_range,time_grid_resolution=0.75*u.hour)
 			frac_obs=observability_table([AltitudeConstraint(min=30*u.deg)], jcmt, targets, time_range=time_range,time_grid_resolution=0.75*u.hour)['fraction of time observable']
 			print 'test', len(targets),np.sum(ever_observable),len(np.where(frac_obs>=0.75/obsn)[0])#pick a HARP, SCUBA-2, and pointing calibrator for each half-night, and add to target list
+			'''(optional) schedule calibrators every hour
 			#calibrators are chosen based on observability each half-night
 			callst1,names1,callst2,names2=pick_cals(obs_mjd[k],obsn,path_dir)
 			names=names1+names2
@@ -566,7 +614,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			#15min of every hour is set aside for calibrators (25% of night)
 			cal_times1=get_cal_times(repeats,obs_mjd[k],1)
 			cal_times2=get_cal_times(repeats2,obs_mjd[k],2)
-			'''for ii in range(0,len(callst1)):
+			for ii in range(0,len(callst1)):
 				for iii in range(0,repeats):
 					targets.append(FixedTarget(coord=SkyCoord(ra=callst1[ii][1],\
 						dec=callst1[ii][2]),name='CAL_'+callst1[ii][0]))
@@ -615,11 +663,12 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			#run the astroplan priority scheduling tool
 			scheduler(bnew, schedule)
 			sched=schedule.to_table(show_unused=True)
+			#raw_input('s')
 			#print out schedule to file for records
 			namemjd=str(Time(obs_mjd[k],format='mjd').datetime.year)+\
 			str(Time(obs_mjd[k],format='mjd').datetime.month)+str(Time(obs_mjd[k],format='mjd').datetime.day)
-			ascii.write([sched['target'],sched['start time (UTC)'],sched['end time (UTC)']],\
-				path_dir+'sim_results/schedules/'+namemjd+'.txt',names=['target','start time (UTC)','end time (UTC)'])
+			ascii.write([sched['target'],sched['start time (UTC)'],sched['end time (UTC)'],sched['duration (minutes)']],\
+				path_dir+'sim_results/schedules/'+namemjd+'.txt',names=['target','start time (UTC)','end time (UTC)','duration (min)'])
 			#keep track of unused time
 			WBand=get_wband(tau_mjd[k])
 			unused_ind=np.where(np.logical_or(sched['target']=='Unused Time',sched['target']=='TransitionBlock'))[0]
@@ -627,9 +676,11 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			lst_list=get_lst(sched,unused_ind,jcmt)
 			lst_tally[WBand].extend(lst_list)
 			wb_usage_tally['Unused'][WBand].append(unused)
+			#uncomment if selecting calibrators specifically
 			#caltime=np.sum(np.array(sched['duration (minutes)'])[[p for p,n in enumerate(np.array(sched['target'])) if n in names]])/60.
 			#wb_usage_tally['Cal'][WBand].append(caltime)
 			#cal_tally.append(caltime)
+
 			#FOR TESTING ONLY--
 			fig=plt.figure(figsize = (14,10))
 			plot_schedule_airmass(schedule,show_night=True)
@@ -644,14 +695,20 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 				tar=np.unique(sched['target'])[h]
 				if (tar not in ['TransitionBlock','Unused Time'] and 'CAL' not in tar):
 					prog=sched['configuration'][np.where(sched['target']==tar)[0][0]]['program']
-					tim_used=np.sum(np.array(sched['duration (minutes)'][np.where(sched['target']==tar)[0]]))/60./1.25
+					msbs=ascii.read(path_dir+'program_details_sim/'+prog+'-project-info.list')
 					num_used=len(np.array(sched['duration (minutes)'][np.where(sched['target']==tar)[0]]))
+					if prog=='m16al001':
+						tim_used=float(msbs['timeest'][np.where(msbs['target']==tar)[0][0]])/3600.
+						m16al001_tally[tar].append(Time(obs_mjd[k],format='mjd',scale='utc'))
+					else:
+						tim_used=np.sum(np.array(sched['duration (minutes)'][np.where(sched['target']==tar)[0]]))/60./1.25
 					if tim_used >0:
-						msbs=ascii.read(path_dir+'program_details_sim/'+prog+'-project-info.list')
 						r0=msbs['remaining'][np.where(msbs['target']==tar)[0]]-num_used
 						oc0=msbs['obscount'][np.where(msbs['target']==tar)[0]]+num_used
+						t0=np.round(msbs['msb_total_hrs'][np.where(msbs['target']==tar)[0]]-tim_used,5)
 						msbs['remaining'][np.where(msbs['target']==tar)[0]]=r0
 						msbs['obscount'][np.where(msbs['target']==tar)[0]]=oc0
+						msbs['msb_total_hrs'][np.where(msbs['target']==tar)[0]]=t0
 						ascii.write([msbs['projectid'],msbs['msbid'],msbs['remaining'],msbs['obscount'],\
 						msbs['timeest'],msbs['msb_total_hrs'],msbs['instrument'],
 						msbs['type'],msbs['pol'],msbs['target'],msbs['ra2000'],msbs['dec2000'],\
@@ -663,8 +720,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 						caltime=(tim_used)*0.25#np.sum(np.array(sched['duration (minutes)'])[[p for p,n in enumerate(np.array(sched['target'])) if n in names]])/60.
 						wb_usage_tally['Cal'][WBand].append(caltime)
 						cal_tally.append(caltime)
-						if prog=='m16al001':
-							 m16al001_tally[tar].append(Time(obs_mjd[k],format='mjd',scale='utc'))
+							 
 		else:
 			WBand=get_wband(tau_mjd[k])
 			wb_usage_tally['Unused'][WBand].append(obsn)
@@ -676,8 +732,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 		#check if any programs are complete and record date
 		for m in LAPprograms['projectid']:
 			msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
-			rem_cnt=np.sum(msbs['msb_total_hrs'])
-			if rem_cnt <=0.:
+			rem_cnt=np.sum(msbs['remaining'])
+			if rem_cnt <=0. and  finished_dates[m] == 'not finished':
 				finished_dates[m]=Time(obs_mjd[k],format='mjd').iso.split(' ')[0]
 		if 'not finished' in finished_dates.values():
 			status='not complete'
@@ -686,6 +742,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 	return total_observed,m16al001_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status
 
 def incremental_comprate(program_list,dats,pers,block,total_observed,RH):
+	'''Keep track of program progress throughout simualtion.'''
 	#print program_list
 	for ii in range(0,len(program_list)):
 		#print ii
@@ -700,6 +757,7 @@ def incremental_comprate(program_list,dats,pers,block,total_observed,RH):
 		pers[ii].append((tot-rem)/tot)
 	return(dats,pers)
 def writeLSTremain(jcmt,prog_list,sim_end):
+	'''Make LST histogram plots for remaining MSBs.'''
 	lst_tally2=defaultdict(list)
 	for m in prog_list:
 		date=Time(sim_end+' 03:30')
@@ -750,17 +808,16 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 #User Input
 ###########################
 start=time.time()
-#path_dir='/Users/atetarenko/Desktop/Support_Scientist_Work/LargeP_predict_model/'
 path_dir='/export/data2/atetarenko/LP_predict/'
 
 sim_start='2019-01-01'
-sim_end='2019-08-01'
+sim_end='2019-04-01'
 
 flag='fetch'#'file' or 'fetch' if you are on EAO computer
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
 
 LAPprograms_file=path_dir+'LP_priority.txt'
-blocks_file=path_dir+'LAP-UT-blocks.txt'#-real-and-model-blocks.txt'
+blocks_file=path_dir+'LAP-UT-blocks-real-and-model-blocks.txt'
 
 #dates the instruments are unavailable in MJD
 SCUBA_2_unavailable=[]
@@ -831,8 +888,8 @@ remaining_new=[]
 for i in range(0,len(program_list)):
 	remaining_new.append(round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2))
 	obs_hrs.append(round(total_observed[program_list[i].upper()],2))
-#because MSB times are not always an exact match to total allocated time, if remaining time less than zero then set remaining time to 0
-remaining_new=[0 if i<0. else i for i in remaining_new]
+#because MSB times are not always an exact match to total allocated time, if remaining time less than the smallest MSB (30min) then set remaining time to 0
+remaining_new=[0 if i<=0.55 else i for i in remaining_new]
 
 #write final results to a file and screen
 ascii.write([RH['projectid'],RH['allocated_hrs'],RH['remaining_hrs'],obs_hrs,remaining_new],\
@@ -868,7 +925,7 @@ ax.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='of
 ax.set_xlabel('${\\rm \\bf Hours}$',fontsize=12)
 ax.xaxis.set_minor_locator(AutoMinorLocator(5))
 fig.subplots_adjust(wspace=0.5,hspace=1)
-plt.savefig(path_dir+'sim_results/prog_results.png',bbox_inches='tight')
+plt.savefig(path_dir+'sim_results/prog_results.pdf',bbox_inches='tight')
 
 #plot program completion chart
 fig=plt.figure()

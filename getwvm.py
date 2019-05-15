@@ -65,9 +65,9 @@ def get_sampled_values(df, column, samplerate='H'):
 
 
 if __name__ == "__main__":
-    startdate = datetime.datetime(2018,1,1)
+    startdate = datetime.datetime(2010,1,1)
     enddate = datetime.datetime(2018,12,31)
-    hourstart = 4 #6pm HST
+    hourstart = 4#6pm HST
     hourend = 16#6am HST
 
     wvmrawfile = 'wvmvalues_allone.csv'
