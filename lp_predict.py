@@ -13,9 +13,11 @@ INPUT: (1) sim_start: proposed start date
 
 OUTPUT: (1) File summary of simulation results detailing the predicted number of hours observed/remaining for each project
         (2) File summary of available, used, and unused time in each weather band
-        (3) Histograms displaying unused RA range per weather band
+        (3a) Histograms displaying unused RA range per weather band
+        (3b) Histograms displaying remaining MSB RA range per weather band
         (4) Bar plot of totals (observed/remaining hrs) per program
         (5) Bar plot of totals (used/unused/cals hrs) per weather band
+        (6) Incremental program completion chart
 
 NOTES: - If you are running this script on an EAO computer, you can use the 'fetch' option to get the wvm data.
 Otherwise you must provide a wvm data file (csv format,4 columns:isoTime,mean,median,count) obtained from running
