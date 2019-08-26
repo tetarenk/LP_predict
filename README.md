@@ -37,5 +37,5 @@ Priority is set as follows: target is from the program for the current observing
 
 <img src="docs/prog_results.png" width="583" height="350" title='Program Results'>
 <img src="docs/prog_completion.png" width="573" height="380" title='Program Completion'>
-<img src="docs/unused_bar.png" width="446" height="400" title='Time Breakdown'>
+<img src="docs/unused_bar.png" width="446" height="390" title='Time Breakdown'>
 <img src="docs/unused_RA.png" width="430" height="400" title='Unused LST'>
