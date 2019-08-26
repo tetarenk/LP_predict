@@ -29,7 +29,7 @@ Priority is set as follows: target is from the program for the current observing
 
 * Simulator results file: including allocated/observed/remaining hrs for each program, total observed hrs in simulation, total hrs lost to weather in simulation, program finish dates.
 * File tabulating a breakdown of available, used, and unused hours in each weather band during the simulation.
-* Schedules for each night in simulation (tables and plots)
+* Schedules for each night in the simulation (tables and plots).
 *  Simulator results plots: including program results bar chart (shown below), program completion chart (shown below), time breakdown bar chart (shown below), unused LST histograms per weather band (shown below), LST histograms per weather band for remaining MSBs.
 
 <img src="docs/prog_results.png" width="500" height="300" title='Program Results'>
