@@ -29,7 +29,7 @@ Priority is set as follows: target is from the program for the current observing
 
 * Simulator results file: including allocated/observed/remaining hrs for each program, total observed hrs in simulation, total hrs lost to weather in simulation, program finish dates.
 * File tabulating a breakdown of available, used, and unused hours in each weather band during the simulation.
-* Schedules for each night in the simulation (tables and plots).
+* Schedules for each night in the simulation; table files and plots (shown below).
 
 <img src="docs/201917.png" width="750" height="500" title='Example Schedule of a Band 2 Night'>
 
