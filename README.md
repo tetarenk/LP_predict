@@ -31,11 +31,11 @@ Priority is set as follows: target is from the program for the current observing
 * File tabulating a breakdown of available, used, and unused hours in each weather band during the simulation.
 * Schedules for each night in the simulation (tables and plots).
 
-<img src="docs/201917.png" width="500" height="300" title='Example Schedule of a Band 2 Night'>
+<img src="docs/201917.png" width="450" height="300" title='Example Schedule of a Band 2 Night'>
 
 *  Simulator results plots: including program results bar chart (shown below), program completion chart (shown below), time breakdown bar chart (shown below), unused LST histograms per weather band (shown below), LST histograms per weather band for remaining MSBs.
 
 <img src="docs/prog_results.png" width="500" height="300" title='Program Results'>
 <img src="docs/prog_completion.png" width="415" height="300" title='Program Completion'>
-<img src="docs/unused_bar.png" width="335" height="300" title='Time Breakdown'>
-<img src="docs/unused_RA.png" width="323" height="300" title='Unused LST'>
+<img src="docs/unused_bar.png" width="375" height="300" title='Time Breakdown'>
+<img src="docs/unused_RA.png" width="430" height="400" title='Unused LST'>
