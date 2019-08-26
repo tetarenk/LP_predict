@@ -36,6 +36,6 @@ Priority is set as follows: target is from the program for the current observing
 *  Simulator results plots: including program results bar chart (shown below), program completion chart (shown below), time breakdown bar chart (shown below), unused LST histograms per weather band (shown below), LST histograms per weather band for remaining MSBs.
 
 <img src="docs/prog_results.png" width="583" height="350" title='Program Results'>
-<img src="docs/prog_completion.png" width="563" height="380" title='Program Completion'>
-<img src="docs/unused_bar.png" width="430" height="400" title='Time Breakdown'>
+<img src="docs/prog_completion.png" width="573" height="380" title='Program Completion'>
+<img src="docs/unused_bar.png" width="446" height="400" title='Time Breakdown'>
 <img src="docs/unused_RA.png" width="430" height="400" title='Unused LST'>
