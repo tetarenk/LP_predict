@@ -21,7 +21,7 @@ OUTPUT: (1) File summary of simulation results
 NOTES: - If you are running this script on an EAO computer, you can use the 'fetch' option to get the wvm data.
 Otherwise you must provide a wvm data file (csv format,4 columns:isoTime,mean,median,count) obtained from running
 the partner script, getwvm.py, on an EAO computer.
-- Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, collections, pandas
+- Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, pandas
 
 Written by: Alex J. Tetarenko
 Last Updated: Aug 25, 2019
