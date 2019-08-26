@@ -32,7 +32,7 @@ Priority is set as follows: target is from the program for the current observing
 * Schedules for each night in simulation (tables and plots)
 *  Simulator results plots: including program results bar chart (shown below), program completion chart (shown below), time breakdown bar chart (shown below), unused LST histograms per weather band, LST histograms per weather band for remaining MSBs.
 
-<img src="docs/201917.png" width="350" height="350" title='Program Results'>
-<img src="docs/prog_completion.pdf" width="350" height="350" title='Program Completion'>
-<img src="docs/unused_bar.pdf" width="350" height="350" title='Time Breakdown'>
-<img src="docs/unused_RA.pdf" width="350" height="350" title='Unused LST'>
+<img src="docs/201917.png" width="450" height="450" title='Program Results'>
+<img src="docs/prog_completion.png" width="450" height="450" title='Program Completion'>
+<img src="docs/unused_bar.png" width="450" height="450" title='Time Breakdown'>
+<img src="docs/unused_RA.png" width="450" height="450" title='Unused LST'>
