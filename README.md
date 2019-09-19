@@ -2,11 +2,13 @@
 Python script that simulates JCMT large program observing.
 
 ## General Description
-The script combines the `astroplan` package, with the large program MSBs, and past WVM data, to create an observing schedule for each night allocated to large programs over the upcoming semester(s). Additional overheads such as, calibrations (equivalent to 25\% of the target observing time), time to slew between targets, blocked out dates for E\&C, and extended observing (occurs when we are in weather better than Band 3), are also included in the observing schedules to more closely match a real observing night at JCMT. 
+The script combines the `astroplan` package, with the large program MSBs, and past WVM data, to create an observing schedule for each night allocated to large programs over the upcoming semester(s). Additional overheads such as, calibrations (equivalent to 25\% of the target observing time), time to slew between targets, faults (set rate of 3% per night), blocked out dates for E\&C, and extended observing (occurs when we are in weather better than Band 3), are also included in the observing schedules to more closely match a real observing night at JCMT. 
 
 The scheduler mimics the JCMT's flexible observing guidelines by stepping through the night sequentially, scheduling the highest priority MSBs that are observable. 
 A target is only added to the target list for a night if it meets the following requirements: target has MSB repeats remaining, the night is not in the blackout dates for the instrument, the weather is appropriate for the MSB. 
 Priority is set as follows: target is from the program for the current observing block (1), target has the same weather band as the night (2), target is allocated time for a worse weather band (3).
+
+Script is compatible with both Python 2 and 3.
 
 
 ## Requires
@@ -19,11 +21,20 @@ Priority is set as follows: target is from the program for the current observing
 
 ## To run the simulator script you need:
 
-*  Start/End dates for simulation.
+###On an EAO computer: 
+
+* Start/End dates for simulation.
 * Blocked out dates for each instrument (e.g., for E\&C).
-* Large program details file (columns: project ID, priority, remaining hrs, allocated hrs, taumin, taumax).
-* MSB files for each program (columns: project ID, msb id, remaining count, obs count, msb time (s), total msb hrs, instrument, type, polarization, target, ra (radians), dec (radians), taumin, taumax).
 * Large program observing blocks file (columns: start date, end date, program with priority, optional second program with priority).
+
+###On any machine: 
+
+* Start/End dates for simulation.
+* Blocked out dates for each instrument (e.g., for E\&C).
+* Large program observing blocks file (columns: start date, end date, program with priority, optional second program with priority).
+* Large program details file; columns: project ID, priority, remaining hrs, allocated hrs, taumin, taumax (through running the sql script example-project-summary.sql on an EAO machine).
+* MSB files for each program; columns: project ID, msb id, remaining count, obs count, msb time (s), total msb hrs, instrument, type, polarization, target, ra (radians), dec (radians), taumin, taumax (through running sql scripts like example-project-info.sql for each large program on an EAO machine).
+* WVM data file (through running the partner script, getwvm.py, on an EAO machine).
 
 ## Simulator output:
 
