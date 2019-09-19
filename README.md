@@ -21,13 +21,13 @@ Script is compatible with both Python 2 and 3.
 
 ## To run the simulator script you need:
 
-###On an EAO computer: 
+### On an EAO computer: 
 
 * Start/End dates for simulation.
 * Blocked out dates for each instrument (e.g., for E\&C).
 * Large program observing blocks file (columns: start date, end date, program with priority, optional second program with priority).
 
-###On any machine: 
+### On any machine: 
 
 * Start/End dates for simulation.
 * Blocked out dates for each instrument (e.g., for E\&C).

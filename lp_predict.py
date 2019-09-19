@@ -22,7 +22,7 @@ following on an EAO machine first:
 (a) wvm file through the python script provided (getwvm.py)
 (b) LAP projects file and MSB files through the sql scripts provided (example-project-summary.sql and example-project-info.sql)
 Details are provided below in the user input and SQL queries sections of the script.
-- Uses the following python packages: astropy, astroplan, matplotlib, numpy
+- Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, pandas
 -Works in both Python 2 and 3
 
 Written by: Alex J. Tetarenko
