@@ -27,14 +27,20 @@ Script is compatible with both Python 2 and 3.
 * Blocked out dates for each instrument (e.g., for E\&C).
 * Large program observing blocks file (columns: start date, end date, program with priority, optional second program with priority).
 
-### On any machine: 
+### On any machine, you will additionally need: 
 
-* Start/End dates for simulation.
-* Blocked out dates for each instrument (e.g., for E\&C).
-* Large program observing blocks file (columns: start date, end date, program with priority, optional second program with priority).
-* Large program details file; columns: project ID, priority, remaining hrs, allocated hrs, taumin, taumax (through running the sql script example-project-summary.sql on an EAO machine).
-* MSB files for each program; columns: project ID, msb id, remaining count, obs count, msb time (s), total msb hrs, instrument, type, polarization, target, ra (radians), dec (radians), taumin, taumax (through running sql scripts like example-project-info.sql for each large program on an EAO machine).
+* Large program details file (through running the sql script example-project-summary.sql on an EAO machine).
+* MSB files for each program (through running sql scripts like example-project-info.sql for each large program on an EAO machine).
+
+To run the sql scripts on an EAO machine,
+
+`ompsql < example-script.sql > output_file.txt`
+
 * WVM data file (through running the partner script, getwvm.py, on an EAO machine).
+
+To run the wvm script on an EAO machine, input the date range in the script, then,
+
+`python wvm.py`
 
 ## Simulator output:
 
