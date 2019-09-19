@@ -4,10 +4,10 @@
 '''Python script that simulates JCMT Large Program observing over the upcoming semester(s).
 
 INPUT: (1) sim_start: proposed start date 
-	   (2) sim_end: proposed end date
-	   (3) Blocked out dates for each instrument
-	   (4) Observing blocks for large programs file (with start/end dates of each scheduled program block)
-	   (optional) Calibrator lists for SCUBA-2, HARP, and Pointing Cals
+       (2) sim_end: proposed end date
+       (3) Blocked out dates for each instrument
+       (4) Observing blocks for large programs file (with start/end dates of each scheduled program block)
+       (optional) Calibrator lists for SCUBA-2, HARP, and Pointing Cals
 
 OUTPUT: (1) File summary of simulation results detailing the predicted number of hours observed/remaining for each project
         (2) File summary of available, used, and unused time in each weather band
