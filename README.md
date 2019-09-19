@@ -29,14 +29,13 @@ Script is compatible with both Python 2 and 3.
 
 ### On any machine, you will additionally need: 
 
-* Large program details file (through running the sql script example-project-summary.sql on an EAO machine).
-* MSB files for each program (through running sql scripts like example-project-info.sql for each large program on an EAO machine).
+* Large program details file and MSB files for each program (through running the sql scripts example-project-summary.sql and  example-project-info.sql on an EAO machine).
 
-To run the sql scripts on an EAO machine,
+To run the sql scripts on an EAO machine and save query output to a file,
 
 `ompsql < example-script.sql > output_file.txt`
 
-* WVM data file (through running the partner script, getwvm.py, on an EAO machine).
+* WVM data file (through running the partner python script, getwvm.py, on an EAO machine).
 
 To run the wvm script on an EAO machine, input the date range in the script, then,
 
