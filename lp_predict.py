@@ -60,9 +60,9 @@ from getwvm import get_wvm_fromdisk, get_sampled_values
 import time
 import sys
 #python2 version
-sys.path.append('/jac_sw/omp/python/lib/')
+#sys.path.append('/jac_sw/omp/python/lib/')
 #Sarah's python 3 version currently lives here, path will be changed at some point
-#sys.path.append('/net/kapili/export/data/sgraves/software/omp-python/lib')
+sys.path.append('/net/kapili/export/data/sgraves/software/omp-python/lib')
 from omp.db.part.arc import ArcDB
 
 def sort_blocks(blocks):
