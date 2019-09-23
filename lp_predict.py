@@ -26,7 +26,7 @@ Details are provided below in the user input and SQL queries sections of the scr
 -Works in both Python 2 and 3
 
 Written by: Alex J. Tetarenko
-Last Updated: Sep 19, 2019
+Last Updated: Sep 23, 2019
 '''
 
 #packages to import
@@ -993,10 +993,15 @@ for jj in range(0,len(OurBlocks)):
 obs_hrs=[]
 remaining_new=[]
 for i in range(0,len(program_list)):
-	remaining_new.append(round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2))
-	obs_hrs.append(round(total_observed[program_list[i].upper()],2))
-#because MSB times are not always an exact match to total allocated time, if remaining time less than the smallest MSB (30min) then set remaining time to 0
-remaining_new=[0 if i<=0.55 else i for i in remaining_new]
+	#because MSB times are not always an exact match to total allocated time, if remaining time less than the smallest MSB then set remaining time to 0
+	msbsf=ascii.read(path_dir+'program_details_sim/'+program_list[i].lower()+'-project-info.list')
+	max_time=np.max(msbsf['timeest'])/3600.
+	rmn=round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2)
+	if rmn < max_time:
+		remaining_new.append(0.)
+	else:
+		remaining_new.append(round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2))
+	obs_hrs.append(round(total_observed[program_list[i].upper()],2))	
 
 #write final results to a file and screen
 ascii.write([RH['projectid'],RH['allocated_hrs'],RH['remaining_hrs'],obs_hrs,remaining_new],\
@@ -1049,8 +1054,9 @@ for jj in range(0,len(program_list)):
 	ax.plot(dats[jj],np.array(pers[jj])*100.,color=colors[jj],ls='-',marker='o',label=program_list[jj])
 for j in range(0,len(blockst)):
 	ax.axvspan(blockst[j], blockend[j], facecolor=colordict[blockprog[j]], alpha=0.3)
-locator1a = mdates.DayLocator(interval=30)
-locator1 = mdates.DayLocator(interval=10)
+sim_dys=abs((datetime.datetime.strptime(sim_end,'%Y-%m-%d')-datetime.datetime.strptime(sim_start,'%Y-%m-%d')).days)
+locator1a = mdates.DayLocator(interval=int((((sim_dys/20.)+3/2)/3)*3))
+locator1 = mdates.DayLocator(interval=int(int((((sim_dys/20.)+3/2)/3)*3)/3))
 ax.xaxis.set_major_locator(locator1a)
 ax.xaxis.set_minor_locator(locator1)
 ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m-%Y"))
