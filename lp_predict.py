@@ -19,11 +19,11 @@ OUTPUT: (1) File summary of simulation results detailing the predicted number of
 
 NOTES: - This script is meant to be run on an EAO computer. If you want to run this script on any machine you need to generate the
 following on an EAO machine first:
-(a) wvm file through the python script provided (getwvm.py)
+(a) wvm file through the python script provided (getwvm.py).
 (b) LAP projects file and MSB files through the sql scripts provided (example-project-summary.sql and example-project-info.sql)
 Details are provided below in the user input and SQL queries sections of the script.
-- Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, pandas, mysql-connector-python
--Works in both Python 2 and 3 (please switch path to omp-python below depending on the python version used)
+- Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, pandas, mysql-connector-python.
+-Works in both Python 2 and 3.
 
 Written by: Alex J. Tetarenko
 Last Updated: Sep 23, 2019
@@ -59,11 +59,15 @@ from collections import defaultdict
 from getwvm import get_wvm_fromdisk, get_sampled_values
 import time
 import sys
-#python2 version
-#sys.path.append('/jac_sw/omp/python/lib/')
-#Sarah's python 3 version currently lives here, path will be changed at some point
-sys.path.append('/net/kapili/export/data/sgraves/software/omp-python/lib')
+#omp-python import
+if sys.version_info.major==2:
+	sys.path.append('/jac_sw/omp/python/lib/')
+else:
+	#Sarah's python 3 version currently lives here, path will be changed at some point
+	sys.path.append('/net/kapili/export/data/sgraves/software/omp-python/lib')
 from omp.db.part.arc import ArcDB
+
+
 
 def sort_blocks(blocks):
 	''' Sort observing blocks in priority order.'''
