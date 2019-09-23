@@ -22,8 +22,8 @@ following on an EAO machine first:
 (a) wvm file through the python script provided (getwvm.py)
 (b) LAP projects file and MSB files through the sql scripts provided (example-project-summary.sql and example-project-info.sql)
 Details are provided below in the user input and SQL queries sections of the script.
-- Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, pandas
--Works in both Python 2 and 3
+- Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, pandas, mysql-connector-python
+-Works in both Python 2 and 3 (please switch path to omp-python below depending on the python version used)
 
 Written by: Alex J. Tetarenko
 Last Updated: Sep 23, 2019
@@ -59,8 +59,10 @@ from collections import defaultdict
 from getwvm import get_wvm_fromdisk, get_sampled_values
 import time
 import sys
+#python2 version
+sys.path.append('/jac_sw/omp/python/lib/')
 #Sarah's python 3 version currently lives here, path will be changed at some point
-sys.path.append('/net/kapili/export/data/sgraves/software/omp-python/lib')
+#sys.path.append('/net/kapili/export/data/sgraves/software/omp-python/lib')
 from omp.db.part.arc import ArcDB
 
 def sort_blocks(blocks):
@@ -864,7 +866,7 @@ start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
 sim_start='2019-09-19'
-sim_end='2023-02-01'
+sim_end='2020-02-01'
 
 flag='fetch'
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'

@@ -18,6 +18,7 @@ Script is compatible with both Python 2 and 3.
 * `astropy`
 * `datetime`
 * `pandas`
+* `mysql-connector-python`
 
 ## To run the simulator script you need:
 
