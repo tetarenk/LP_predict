@@ -999,12 +999,8 @@ for jj in range(0,len(OurBlocks)):
 obs_hrs=[]
 remaining_new=[]
 for i in range(0,len(program_list)):
-	#because MSB times are not always an exact match to total allocated time, if remaining time less than the smallest MSB 
-	#an dno MSB repeats remaining, then set remaining time to 0
-	msbsf=ascii.read(path_dir+'program_details_sim/'+program_list[i].lower()+'-project-info.list')
-	min_time=np.min(msbsf['timeest'])/3600.
-	rmn=round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2)
-	if rmn < min_time and finished_dates[program_list[i]] == 'finished':
+	#because MSB times are not always an exact match to total allocated time, if no MSB repeats remaining, then set remaining time to 0
+	if finished_dates[program_list[i]] == 'finished':
 		remaining_new.append(0.)
 	else:
 		remaining_new.append(round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2))
