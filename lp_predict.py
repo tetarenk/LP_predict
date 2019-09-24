@@ -999,11 +999,12 @@ for jj in range(0,len(OurBlocks)):
 obs_hrs=[]
 remaining_new=[]
 for i in range(0,len(program_list)):
-	#because MSB times are not always an exact match to total allocated time, if remaining time less than the smallest MSB then set remaining time to 0
+	#because MSB times are not always an exact match to total allocated time, if remaining time less than the smallest MSB 
+	#an dno MSB repeats remaining, then set remaining time to 0
 	msbsf=ascii.read(path_dir+'program_details_sim/'+program_list[i].lower()+'-project-info.list')
-	max_time=np.max(msbsf['timeest'])/3600.
+	min_time=np.min(msbsf['timeest'])/3600.
 	rmn=round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2)
-	if rmn < max_time:
+	if rmn < min_time and finished_dates[program_list[i]] == 'finished':
 		remaining_new.append(0.)
 	else:
 		remaining_new.append(round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2))
@@ -1105,9 +1106,9 @@ print('\nM16AL001 Tally:\n')
 fileo=open(path_dir+'sim_results/results.txt','a')
 fileo.write('\nM16AL001 Tally:\n')
 for key in m16al001_tally.keys():
-	print(key)
+	print(key+':')
 	fileo.write('\n'+key+'\n')
-	print([(i.datetime.month,i.datetime.year) for i in m16al001_tally[key]])
+	print(",".join(['('+str(i.datetime.month)+','+str(i.datetime.year)+')' for i in m16al001_tally[key]]))
 	fileo.write(",".join(['('+str(i.datetime.month)+','+str(i.datetime.year)+')' for i in m16al001_tally[key]]))
 	fileo.write('\n')
 fileo.close()
