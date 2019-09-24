@@ -125,7 +125,7 @@ class JCMTScheduler(Scheduler):
             b.observer = self.observer
         current_time = self.schedule.start_time
         while (len(blocks) > 0) and (current_time < self.schedule.end_time):
-            print(current_time)# first compute the value of all the constraints for each block
+            #print(current_time)# first compute the value of all the constraints for each block
             # given the current starting time
             block_transitions = []
             block_constraint_results = []
@@ -423,7 +423,7 @@ def get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile=''):
 		#sim_years=4
 		prev_years=Time(sim_start,format='iso').datetime.year-sim_years
 		prev_yeare=Time(sim_end,format='iso').datetime.year-sim_years
-		print(prev_years)
+		#print(prev_years)
 		startdatewvm=Time(str(prev_years)+'-'+sim_start.split('-')[1]+'-'+sim_start.split('-')[2],format='iso').datetime
 		enddatewvm=Time(str(prev_yeare)+'-'+'12-31',format='iso').datetime
 		wvmvalues=get_wvm_fromdisk(startdatewvm,enddatewvm)
@@ -561,7 +561,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 	jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
 	constraints = [AltitudeConstraint(min=0*u.deg)]
 
-	print('block:',obs_mjd)
+	#print('block:',obs_mjd)
 	#loop over all days in the current observing block
 	for k in range(0,len(obs_mjd)):
 		print('day:',obs_mjd[k])
