@@ -1000,7 +1000,7 @@ obs_hrs=[]
 remaining_new=[]
 for i in range(0,len(program_list)):
 	#because MSB times are not always an exact match to total allocated time, if no MSB repeats remaining, then set remaining time to 0
-	if finished_dates[program_list[i]] == 'finished':
+	if finished_dates[program_list[i]] != 'not finished':
 		remaining_new.append(0.)
 	else:
 		remaining_new.append(round(RH['remaining_hrs'][np.where(RH['projectid']==program_list[i].upper())[0][0]]-total_observed[program_list[i].upper()],2))
