@@ -125,7 +125,7 @@ class JCMTScheduler(Scheduler):
             b.observer = self.observer
         current_time = self.schedule.start_time
         while (len(blocks) > 0) and (current_time < self.schedule.end_time):
-            #print(current_time)# first compute the value of all the constraints for each block
+            # first compute the value of all the constraints for each block
             # given the current starting time
             block_transitions = []
             block_constraint_results = []
@@ -423,7 +423,7 @@ def get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile=''):
 		#sim_years=4
 		prev_years=Time(sim_start,format='iso').datetime.year-sim_years
 		prev_yeare=Time(sim_end,format='iso').datetime.year-sim_years
-		#print(prev_years)
+		print(prev_years)
 		startdatewvm=Time(str(prev_years)+'-'+sim_start.split('-')[1]+'-'+sim_start.split('-')[2],format='iso').datetime
 		enddatewvm=Time(str(prev_yeare)+'-'+'12-31',format='iso').datetime
 		wvmvalues=get_wvm_fromdisk(startdatewvm,enddatewvm)
@@ -456,7 +456,7 @@ def good_blocks(Blocks,mjd_predict,tau_predict):
 	end=Blocks['date_end']
 	startmjd=Time(str(start)[0:4]+'-'+str(start)[4:6]+'-'+str(start)[6:8], format='iso', scale='utc').mjd
 	endmjd=Time(str(end)[0:4]+'-'+str(end)[4:6]+'-'+str(end)[6:8], format='iso', scale='utc').mjd
-	dates=np.arange(startmjd,endmjd+1,1)
+	dates=np.arange(startmjd,endmjd,1)
 	obs_mjd=mjd_predict[[i for i, item in enumerate(mjd_predict) if item in dates]]
 	tau_mjd=tau_predict[[i for i, item in enumerate(mjd_predict) if item in dates]]
 	return(obs_mjd,tau_mjd)
@@ -564,7 +564,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 	#print('block:',obs_mjd)
 	#loop over all days in the current observing block
 	for k in range(0,len(obs_mjd)):
-		print('day:',obs_mjd[k])
+		#print('day:',obs_mjd[k])
 		#A standard observing night will run from 5:30pm HST to 6:30am HST (13 hrs; times below are UTC!)
 		#if tau is at band 3 or better, EO is scheduled, and we observe till 10:30am HST (17 hrs)
 		if tau_mjd[k] < 0.12:
@@ -869,8 +869,8 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
-sim_start='2019-09-19'
-sim_end='2020-02-01'
+sim_start='2019-07-16'
+sim_end='2019-08-10'
 
 flag='fetch'
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
@@ -884,8 +884,8 @@ blocks_file=path_dir+'LAP-UT-blocks-real-and-model-blocks.txt'
 
 #dates the instruments are unavailable in MJD
 SCUBA_2_unavailable=[]
-HARP_unavailable=[]
-RU_unavailable=np.arange(58484,58604)
+HARP_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
+RU_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
 #############################################################
 
 #create output directory tree structure
@@ -1058,8 +1058,14 @@ for jj in range(0,len(program_list)):
 for j in range(0,len(blockst)):
 	ax.axvspan(blockst[j], blockend[j], facecolor=colordict[blockprog[j]], alpha=0.3)
 sim_dys=abs((datetime.datetime.strptime(sim_end,'%Y-%m-%d')-datetime.datetime.strptime(sim_start,'%Y-%m-%d')).days)
-locator1a = mdates.DayLocator(interval=int((((sim_dys/20.)+3/2)/3)*3))
-locator1 = mdates.DayLocator(interval=int(int((((sim_dys/20.)+3/2)/3)*3)/3))
+l1=int((((sim_dys/20.)+3/2)/3)*3)
+l2=int(int((((sim_dys/20.)+3/2)/3)*3)/3)
+if l1 < 1. or l2 <1.:
+	locator1a = mdates.DayLocator(interval=2)
+	locator1 = mdates.DayLocator(interval=1)
+else:
+	locator1a = mdates.DayLocator(interval=l1)
+	locator1 = mdates.DayLocator(interval=l2)
 ax.xaxis.set_major_locator(locator1a)
 ax.xaxis.set_minor_locator(locator1)
 ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m-%Y"))
