@@ -11,11 +11,12 @@ INPUT: (1) sim_start: proposed start date
 
 OUTPUT: (1) File summary of simulation results detailing the predicted number of hours observed/remaining for each project
         (2) File summary of available, used, and unused time in each weather band
-        (3a) Histograms displaying unused RA range per weather band
-        (3b) Histograms displaying remaining MSB RA range per weather band
-        (4) Bar plot of totals (observed/remaining hrs) per program
-        (5) Bar plot of totals (used/unused/cals hrs) per weather band
-        (6) Incremntal program completion chart
+        (3) File summary of remaining hrs split by weather band, instrument, and program
+        (4a) Histograms displaying unused RA range per weather band
+        (4b) Histograms displaying remaining MSB RA range per weather band
+        (5) Bar plot of totals (observed/remaining hrs) per program
+        (6) Bar plot of totals (used/unused/cals hrs) per weather band
+        (7) Incremntal program completion chart
 
 NOTES: - This script is meant to be run on an EAO computer. If you want to run this script on any machine you need to generate the
 following on an EAO machine first:
@@ -26,7 +27,7 @@ Details are provided below in the user input and SQL queries sections of the scr
 -Works in both Python 2 and 3.
 
 Written by: Alex J. Tetarenko
-Last Updated: Sep 23, 2019
+Last Updated: Oct 8, 2019
 '''
 
 #packages to import
@@ -125,7 +126,7 @@ class JCMTScheduler(Scheduler):
             b.observer = self.observer
         current_time = self.schedule.start_time
         while (len(blocks) > 0) and (current_time < self.schedule.end_time):
-            # first compute the value of all the constraints for each block
+            print(current_time)# first compute the value of all the constraints for each block
             # given the current starting time
             block_transitions = []
             block_constraint_results = []
@@ -259,20 +260,41 @@ def correct_msbs(LAPprograms,path_dir):
 	print('\n')
 
 def time_remain_p_weatherband(LAPprograms,path_dir):
-	'''Calculates remaining time per weather band for each program after the simulation has run.'''
+	'''Calculates remaining time per weather band for each program, per weather band for all programs, 
+	and per instrument for all programs after the simulation has run.'''
 	program_list=np.array(LAPprograms['projectid'])
-	fileo=open(path_dir+'sim_results/results_wb.txt','w')
+	tot={k:0 for k in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']}
+	inst={k:0 for k in ['SCUBA-2', 'HARP','UU', 'RXA3M']}
+	fileo=open(path_dir+'sim_results/results_split.txt','w')
+	fileo.write('Per Program:\n')
 	for m in program_list:
 		remainwb_tally={}
-		print(m)
 		msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
-		uni_wb=np.unique(msbs['taumax'])
+		uni_wb=list(np.unique(msbs['taumax']))
+		instruments=list(np.unique(msbs['instrument']))
 		for i in range(0,len(uni_wb)):
 			wb=get_wband(uni_wb[i])
 			ind=np.where(msbs['taumax']==uni_wb[i])[0]
-			remainwb_tally[wb]=round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
+			if wb in list(remainwb_tally.keys()):
+				remainwb_tally[wb]=remainwb_tally[wb]+round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
+			else:
+				remainwb_tally[wb]=round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
 		fileo.write('{0} {1}\n'.format(m+':',remainwb_tally))
+		for bandkey in list(remainwb_tally.keys()):
+			tot[bandkey]=tot[bandkey]+remainwb_tally[bandkey]
+		for val in range(0,len(instruments)):
+			ind2=np.where(msbs['instrument']==instruments[val])[0]
+			inst[instruments[val]]=inst[instruments[val]]+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
+	fileo.write('\n')
+	fileo.write('Per Weather Band:\n')
+	for band in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']:
+		fileo.write('{0} {1}\n'.format(band+':',np.round(tot[band],2)))
+	fileo.write('\n')
+	fileo.write('Per Instrument:\n')
+	for ins in ['SCUBA-2', 'HARP','UU', 'RXA3M']:
+		fileo.write('{0} {1}\n'.format(ins+':',np.round(inst[ins],2)))
 	fileo.close()
+	return(tot,inst)
 
 def transform_blocks(blocks_file):
 	'''Reads in observing blocks data file. We make sure to properly deal with the irregular observing blocks data file,
@@ -483,7 +505,7 @@ def get_wband(tau):
 		wb='Band 3'
 	elif tau<=0.2 and tau>0.12:
 		wb='Band 4'
-	else:
+	elif tau>0.2:
 		wb='Band 5'
 	return(wb)
 
@@ -561,10 +583,10 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 	jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
 	constraints = [AltitudeConstraint(min=0*u.deg)]
 
-	#print('block:',obs_mjd)
+	print('block:',obs_mjd)
 	#loop over all days in the current observing block
 	for k in range(0,len(obs_mjd)):
-		#print('day:',obs_mjd[k])
+		print('day:',obs_mjd[k])
 		#A standard observing night will run from 5:30pm HST to 6:30am HST (13 hrs; times below are UTC!)
 		#if tau is at band 3 or better, EO is scheduled, and we observe till 10:30am HST (17 hrs)
 		if tau_mjd[k] < 0.12:
@@ -869,8 +891,8 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
-sim_start='2019-07-16'
-sim_end='2019-08-10'
+sim_start='2019-10-07'
+sim_end='2020-02-01'
 
 flag='fetch'
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
@@ -1100,8 +1122,8 @@ print("Total Remaining Hrs for Large Programs after Simulation: ",round(np.sum(r
 print("Total Hrs lost to weather (i.e., nights where nothing observed):", np.sum(nothing_obs))
 
 
-#write remaining hrs in each program split by weather band to a file
-#time_remain_p_weatherband(LAPprograms,path_dir)
+#write remaining hrs split by weather band, instrument, and program to file
+time_remain_p_weatherband(LAPprograms,path_dir)
 
 #optionally print out month/year combos that each source in m16al001 was observed to screen and append to results file
 print('\nM16AL001 Tally:\n')

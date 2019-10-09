@@ -45,6 +45,7 @@ To run the wvm script on an EAO machine, input the date range in the script, the
 
 * Simulator results file: including allocated/observed/remaining hrs for each program, total observed hrs in simulation, total hrs lost to weather in simulation, program finish dates.
 * File tabulating a breakdown of available, used, and unused hours in each weather band during the simulation.
+* File tabulating the remaining time in the large program queue after the simulation, split by weather band, instrument, and program.
 * Schedules for each night in the simulation; table files and plots (shown below).
 
 <img src="docs/201917.png" width="750" height="500" title='Example Schedule of a Band 2 Night'>
