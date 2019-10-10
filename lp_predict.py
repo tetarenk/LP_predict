@@ -11,12 +11,14 @@ INPUT: (1) sim_start: proposed start date
 
 OUTPUT: (1) File summary of simulation results detailing the predicted number of hours observed/remaining for each project
         (2) File summary of available, used, and unused time in each weather band
-        (3) File summary of remaining hrs split by weather band, instrument, and program
+        (3) File summaries of remaining hrs split by weather band, instrument, and program
         (4a) Histograms displaying unused RA range per weather band
         (4b) Histograms displaying remaining MSB RA range per weather band
         (5) Bar plot of totals (observed/remaining hrs) per program
         (6) Bar plot of totals (used/unused/cals hrs) per weather band
-        (7) Incremntal program completion chart
+        (7) Incremental program completion chart
+        (8) Bar plot of totals (remaining hrs in each weather band) per program
+        (9) Bar plot of total remaining hrs split by weather band and instrument
 
 NOTES: - This script is meant to be run on an EAO computer. If you want to run this script on any machine you need to generate the
 following on an EAO machine first:
@@ -27,7 +29,7 @@ Details are provided below in the user input and SQL queries sections of the scr
 -Works in both Python 2 and 3.
 
 Written by: Alex J. Tetarenko
-Last Updated: Oct 8, 2019
+Last Updated: Oct 9, 2019
 '''
 
 #packages to import
@@ -263,29 +265,30 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 	'''Calculates remaining time per weather band for each program, per weather band for all programs, 
 	and per instrument for all programs after the simulation has run.'''
 	program_list=np.array(LAPprograms['projectid'])
+	remainwb_tally={k:{} for k in program_list}
+	for i in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']:
+		for j in list(remainwb_tally.keys()):
+			remainwb_tally[j][i]=0
 	tot={k:0 for k in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']}
 	inst={k:0 for k in ['SCUBA-2', 'HARP','UU', 'RXA3M']}
-	fileo=open(path_dir+'sim_results/results_split.txt','w')
+	fileo=open(path_dir+'sim_results/results_wb.txt','w')
 	fileo.write('Per Program:\n')
 	for m in program_list:
-		remainwb_tally={}
 		msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
 		uni_wb=list(np.unique(msbs['taumax']))
 		instruments=list(np.unique(msbs['instrument']))
 		for i in range(0,len(uni_wb)):
 			wb=get_wband(uni_wb[i])
 			ind=np.where(msbs['taumax']==uni_wb[i])[0]
-			if wb in list(remainwb_tally.keys()):
-				remainwb_tally[wb]=remainwb_tally[wb]+round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
-			else:
-				remainwb_tally[wb]=round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
-		fileo.write('{0} {1}\n'.format(m+':',remainwb_tally))
-		for bandkey in list(remainwb_tally.keys()):
-			tot[bandkey]=tot[bandkey]+remainwb_tally[bandkey]
+			remainwb_tally[m.upper()][wb]=remainwb_tally[m.upper()][wb]+round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
+		fileo.write('{0} {1}\n'.format(m+':',remainwb_tally[m.upper()]))
+		for bandkey in list(remainwb_tally[m.upper()].keys()):
+			tot[bandkey]=tot[bandkey]+remainwb_tally[m.upper()][bandkey]
 		for val in range(0,len(instruments)):
 			ind2=np.where(msbs['instrument']==instruments[val])[0]
 			inst[instruments[val]]=inst[instruments[val]]+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
-	fileo.write('\n')
+	fileo.close()
+	fileo=open(path_dir+'sim_results/results_split.txt','w')
 	fileo.write('Per Weather Band:\n')
 	for band in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']:
 		fileo.write('{0} {1}\n'.format(band+':',np.round(tot[band],2)))
@@ -294,7 +297,7 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 	for ins in ['SCUBA-2', 'HARP','UU', 'RXA3M']:
 		fileo.write('{0} {1}\n'.format(ins+':',np.round(inst[ins],2)))
 	fileo.close()
-	return(tot,inst)
+	return(tot,inst,remainwb_tally)
 
 def transform_blocks(blocks_file):
 	'''Reads in observing blocks data file. We make sure to properly deal with the irregular observing blocks data file,
@@ -1123,7 +1126,68 @@ print("Total Hrs lost to weather (i.e., nights where nothing observed):", np.sum
 
 
 #write remaining hrs split by weather band, instrument, and program to file
-time_remain_p_weatherband(LAPprograms,path_dir)
+wb_tot,inst_tot,remain_tot=time_remain_p_weatherband(LAPprograms,path_dir)
+
+#plot remaining hrs split by weather band for each program
+fig=plt.figure()
+font={'family':'serif','weight':'bold','size' : '14'}
+rc('font',**font)
+mpl.rcParams['xtick.direction']='in'
+mpl.rcParams['ytick.direction']='in'
+ax=plt.subplot(111)
+progs=[i for i in RH['projectid']]
+obswb=[]
+for m in progs:
+	obswb.append([remain_tot[m.upper()][i] for i in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']])
+ypos = np.arange(len(progs))
+width = 0.45
+p1=ax.barh(ypos,[obswb2[i][0] for i in ypos],width,color='b',edgecolor='k',lw=0.5,alpha=0.6)
+p2=ax.barh(ypos,[obswb2[i][1] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos]),color='purple',edgecolor='k',lw=0.5,alpha=0.6)
+p3=ax.barh(ypos,[obswb2[i][2] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos]),color='r',edgecolor='k',lw=0.5,alpha=0.6)
+p4=ax.barh(ypos,[obswb2[i][3] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos])+np.array([obswb2[i][2] for i in ypos]),color='orange',edgecolor='k',lw=0.5,alpha=0.6)
+p5=ax.barh(ypos,[obswb2[i][4] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos])+np.array([obswb2[i][2] for i in ypos])+np.array([obswb2[i][3] for i in ypos]),color='g',edgecolor='k',lw=0.5,alpha=0.6)
+ax.set_yticks(ypos)
+ax.set_yticklabels(progs)
+ax.legend((p1[0],p2[0],p3[0],p4[0],p5[0]), ('Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5'),fontsize=7,loc='top right',ncol=1)
+ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
+ax.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
+ax.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
+ax.set_xlabel('${\\rm \\bf Hours}$',fontsize=12)
+ax.xaxis.set_minor_locator(AutoMinorLocator(10))
+fig.subplots_adjust(wspace=0.5,hspace=1)
+plt.savefig(path_dir+'sim_results/prog_remaining_progperwb.pdf',bbox_inches='tight')
+
+#plot remaining hrs per weather band and per instrument for all prgrams
+fig=plt.figure()
+font={'family':'serif','weight':'bold','size' : '14'}
+rc('font',**font)
+mpl.rcParams['xtick.direction']='in'
+mpl.rcParams['ytick.direction']='in'
+ax=plt.subplot(121)
+ax2=plt.subplot(122)
+bands=[wb_tot[i] for i in list(wb_tot.keys())]
+insts=[inst_tot[i] for i in list(inst_tot.keys())]
+ypos1 = np.arange(len(bands))
+ypos2 = np.arange(len(insts))
+width = 0.45
+p1=ax.barh(ypos1,bands,width,color='b',edgecolor='k',lw=0.5,alpha=0.6)
+p2=ax2.barh(ypos2,insts,width,color='orange',edgecolor='k',lw=0.5,alpha=0.6)
+ax.set_yticks(ypos1)
+ax.set_yticklabels([i for i in list(wb_tot.keys())])
+ax2.set_yticks(ypos2)
+ax2.set_yticklabels([i for i in list(inst_tot.keys())])
+ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
+ax.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
+ax.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
+ax2.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
+ax2.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
+ax2.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
+ax.set_xlabel('${\\rm \\bf Remaining\\,\\,Hours}$',fontsize=12)
+ax.xaxis.set_label_coords(1.3,-0.1)
+ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+ax2.xaxis.set_minor_locator(AutoMinorLocator(5))
+fig.subplots_adjust(wspace=0.5,hspace=1)
+plt.savefig(path_dir+'sim_results/prog_remaining_wplusinst.pdf',bbox_inches='tight')
 
 #optionally print out month/year combos that each source in m16al001 was observed to screen and append to results file
 print('\nM16AL001 Tally:\n')
@@ -1137,7 +1201,7 @@ for key in m16al001_tally.keys():
 	fileo.write('\n')
 fileo.close()
 
-#print finsh dates of program if available
+#print finish dates of program if available
 print('\nProgram Finish Dates:\n')
 fileo=open(path_dir+'sim_results/results.txt','a')
 fileo.write('\nProgram Finish Dates:\n')
