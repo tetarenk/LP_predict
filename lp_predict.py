@@ -997,8 +997,8 @@ correct_msbs(LAPprograms,path_dir)
 #hack for M17BL010 - it was allocated time for RXA, but now will be using UU with time/2.2
 #here we double check if the MSBs still read RXA
 m='M17BL010'
-msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
-instruments_10=list(np.unique(msbs['instrument']))
+msbs_10=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
+instruments_10=list(np.unique(msbs_10['instrument']))
 if 'RXA3M' in instruments_10:
 	LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
 	LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
