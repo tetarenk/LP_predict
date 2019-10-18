@@ -53,7 +53,7 @@ from astropy.time import Time,TimeDelta
 import warnings
 warnings.filterwarnings('ignore')
 from astroplan import Observer, FixedTarget, AltitudeConstraint, is_observable, ObservingBlock, observability_table
-from astroplan.constraints import TimeConstraint,AltitudeConstraint
+from astroplan.constraints import TimeConstraint,AltitudeConstraint,SunSeparationConstraint
 from astroplan.scheduling import PriorityScheduler, Schedule, Transitioner,Scheduler, Scorer,TransitionBlock
 from astroplan.utils import time_grid_from_range,stride_array
 from astroplan.plots import plot_schedule_airmass
@@ -270,7 +270,7 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 		for j in list(remainwb_tally.keys()):
 			remainwb_tally[j][i]=0
 	tot={k:0 for k in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']}
-	inst={k:0 for k in ['SCUBA-2', 'HARP','UU', 'RXA3M']}
+	inst={k:0 for k in ['SCUBA-2', 'HARP','UU']}
 	fileo=open(path_dir+'sim_results/results_wb.txt','w')
 	fileo.write('Per Program:\n')
 	for m in program_list:
@@ -280,13 +280,21 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 		for i in range(0,len(uni_wb)):
 			wb=get_wband(uni_wb[i])
 			ind=np.where(msbs['taumax']==uni_wb[i])[0]
+			#RXA time / 2.2 is UU time
+			for dx in ind:
+				if msbs['instrument'][dx] == 'RXA3M':
+					msbs['timeest'][dx]=msbs['timeest'][dx]/2.2
 			remainwb_tally[m.upper()][wb]=remainwb_tally[m.upper()][wb]+round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
 		fileo.write('{0} {1}\n'.format(m+':',remainwb_tally[m.upper()]))
 		for bandkey in list(remainwb_tally[m.upper()].keys()):
 			tot[bandkey]=tot[bandkey]+remainwb_tally[m.upper()][bandkey]
 		for val in range(0,len(instruments)):
 			ind2=np.where(msbs['instrument']==instruments[val])[0]
-			inst[instruments[val]]=inst[instruments[val]]+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
+			#RXA time is now UU time
+			if instruments[val] == 'RXA3M':
+				inst['UU']=inst['UU']+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
+			else:
+				inst[instruments[val]]=inst[instruments[val]]+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
 	fileo.close()
 	fileo=open(path_dir+'sim_results/results_split.txt','w')
 	fileo.write('Per Weather Band:\n')
@@ -294,7 +302,7 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 		fileo.write('{0} {1}\n'.format(band+':',np.round(tot[band],2)))
 	fileo.write('\n')
 	fileo.write('Per Instrument:\n')
-	for ins in ['SCUBA-2', 'HARP','UU', 'RXA3M']:
+	for ins in ['SCUBA-2', 'HARP','UU']:
 		fileo.write('{0} {1}\n'.format(ins+':',np.round(inst[ins],2)))
 	fileo.close()
 	return(tot,inst,remainwb_tally)
@@ -499,10 +507,10 @@ def bad_block(instrument,SCUBA_2_unavailable,HARP_unavailable,UU_unavailable):
 	return checklst
 
 def get_wband(tau):
-	'''Matches tau values to a weather band.'''
-	if tau<=0.05:
+	'''Matches tau values to a weather band. Note Band 1 is set as 0.055 to take into account the PIs who put 0.055 as a Band 1 limit!'''
+	if tau<=0.055:
 		wb='Band 1'
-	elif tau<=0.08 and tau>0.05:
+	elif tau<=0.08 and tau>0.055:
 		wb='Band 2'
 	elif tau<=0.12 and tau>0.08:
 		wb='Band 3'
@@ -515,9 +523,9 @@ def get_wband(tau):
 def get_m16al001_time(tau):
 	'''Some programs (e.g., M16AL001) MSBs can be run in different weather bands, and the MSB files only reflect one Band (e.g., Band 3) time.
 	Here we select the proper MSB time depending on the weather band for the night.'''
-	if tau<=0.05:
+	if tau<=0.055:
 		time=1320.
-	elif tau<=0.08 and tau>0.05:
+	elif tau<=0.08 and tau>0.055:
 		time=1920.
 	elif tau<=0.12 and tau>0.08:
 		time=2520.
@@ -584,7 +592,6 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 
 	#set up observatory site and general elevation constraints
 	jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
-	constraints = [AltitudeConstraint(min=0*u.deg)]
 
 	print('block:',obs_mjd)
 	#loop over all days in the current observing block
@@ -596,10 +603,14 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			time_range = Time([Time((obs_mjd[k]+1), format='mjd', scale='utc').iso.split(' ')[0]+" 03:30",\
 				Time((obs_mjd[k]+1), format='mjd', scale='utc').iso.split(' ')[0]+" 20:30"])
 			obsn=17.
+			#set up general elevation constraints and sun avoidance constraints for when we are in EO
+			constraints = [AltitudeConstraint(min=0*u.deg),SunSeparationConstraint(min=45*u.deg)]
 		else:
 			time_range = Time([Time((obs_mjd[k]+1), format='mjd', scale='utc').iso.split(' ')[0]+" 03:30",\
 				Time((obs_mjd[k]+1), format='mjd', scale='utc').iso.split(' ')[0]+" 16:30"])
 			obsn=13.
+			#set up general elevation constraints
+			constraints = [AltitudeConstraint(min=0*u.deg)]
 		tot_tally.append(obsn)
 		WBand=get_wband(tau_mjd[k])
 		wb_usage_tally['Available'][WBand].append(obsn)
@@ -640,7 +651,10 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 									ta.append(AltitudeConstraint(min=30*u.deg))
 								#assign priority
 								priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],FP,LAPprograms))
-								msb_time.append(1.25*obs_time_table['timeest'][j]*u.second)
+								if obs_time_table['instrument'][j] == 'RXA3M':
+									msb_time.append((1.25/2.2)*obs_time_table['timeest'][j]*u.second)
+								else:
+									msb_time.append(1.25*obs_time_table['timeest'][j]*u.second)
 								configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j)+'_'+str(jj))
 								prog.append(m.lower())
 						else:
@@ -844,6 +858,7 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 	'''Make LST histogram plots for remaining MSBs.'''
 	lst_tally2=defaultdict(list)
 	for m in prog_list:
+		#if m.upper() not in ['M17BL001','M17BL010','M17BL006','M17BL007']:
 		date=Time(sim_end+' 03:30')
 		msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
 		for j in range(0,len(msbs['target'])):
@@ -894,8 +909,8 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
-sim_start='2019-10-07'
-sim_end='2020-02-01'
+sim_start='2019-10-16'
+sim_end='2023-02-01'
 
 flag='fetch'
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
@@ -979,6 +994,11 @@ print('Predicting Large Program observations between '+sim_start+' and '+sim_end
 
 #correct MSB files to match allocation
 correct_msbs(LAPprograms,path_dir)
+#hack for M17BL010 - it was allocated time for RXA, but now will be using UU with time/2.2
+LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
+LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
+RH['remaining_hrs'][RH['projectid']=='M17BL010']=np.round(RH['remaining_hrs'][RH['projectid']=='M17BL010']/2.2,2)
+RH['allocated_hrs'][RH['projectid']=='M17BL010']=np.round(RH['allocated_hrs'][RH['projectid']=='M17BL010']/2.2,2)
 
 #calculate observing blocks within the selected simulation dates
 Blocks=transform_blocks(blocks_file)
@@ -1136,9 +1156,9 @@ mpl.rcParams['xtick.direction']='in'
 mpl.rcParams['ytick.direction']='in'
 ax=plt.subplot(111)
 progs=[i for i in RH['projectid']]
-obswb=[]
+obswb2=[]
 for m in progs:
-	obswb.append([remain_tot[m.upper()][i] for i in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']])
+	obswb2.append([remain_tot[m.upper()][i] for i in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']])
 ypos = np.arange(len(progs))
 width = 0.45
 p1=ax.barh(ypos,[obswb2[i][0] for i in ypos],width,color='b',edgecolor='k',lw=0.5,alpha=0.6)
@@ -1157,7 +1177,7 @@ ax.xaxis.set_minor_locator(AutoMinorLocator(10))
 fig.subplots_adjust(wspace=0.5,hspace=1)
 plt.savefig(path_dir+'sim_results/prog_remaining_progperwb.pdf',bbox_inches='tight')
 
-#plot remaining hrs per weather band and per instrument for all prgrams
+#plot remaining hrs per weather band and per instrument for all programs
 fig=plt.figure()
 font={'family':'serif','weight':'bold','size' : '14'}
 rc('font',**font)
