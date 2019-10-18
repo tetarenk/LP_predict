@@ -909,7 +909,7 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
-sim_start='2019-10-16'
+sim_start='2019-10-18'
 sim_end='2023-02-01'
 
 flag='fetch'
@@ -995,10 +995,15 @@ print('Predicting Large Program observations between '+sim_start+' and '+sim_end
 #correct MSB files to match allocation
 correct_msbs(LAPprograms,path_dir)
 #hack for M17BL010 - it was allocated time for RXA, but now will be using UU with time/2.2
-LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
-LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
-RH['remaining_hrs'][RH['projectid']=='M17BL010']=np.round(RH['remaining_hrs'][RH['projectid']=='M17BL010']/2.2,2)
-RH['allocated_hrs'][RH['projectid']=='M17BL010']=np.round(RH['allocated_hrs'][RH['projectid']=='M17BL010']/2.2,2)
+#here we double check if the MSBs still read RXA
+m='M17BL010'
+msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
+instruments_10=list(np.unique(msbs['instrument']))
+if 'RXA3M' in instruments_10:
+	LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
+	LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
+	RH['remaining_hrs'][RH['projectid']=='M17BL010']=np.round(RH['remaining_hrs'][RH['projectid']=='M17BL010']/2.2,2)
+	RH['allocated_hrs'][RH['projectid']=='M17BL010']=np.round(RH['allocated_hrs'][RH['projectid']=='M17BL010']/2.2,2)
 
 #calculate observing blocks within the selected simulation dates
 Blocks=transform_blocks(blocks_file)
