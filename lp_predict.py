@@ -29,7 +29,7 @@ Details are provided below in the user input and SQL queries sections of the scr
 -Works in both Python 2 and 3.
 
 Written by: Alex J. Tetarenko
-Last Updated: Oct 9, 2019
+Last Updated: Oct 18, 2019
 '''
 
 #packages to import
