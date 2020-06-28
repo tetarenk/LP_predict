@@ -35,7 +35,7 @@ def get_wvm_fromdisk(startdate, enddate):
         'mmH2O_z',#       The water density at zenith in mm
         'finalTau',#       The Tau at zenith
         'tSys_0',#       The system temperature of receiver 0
-        'tSys_0',#       The system temperature of receiver 1
+        'tSys_1',#       The system temperature of receiver 1
         'tSys_2',#       The system temperature of receiver 2
         'azimuthDeg',#    Antenna azimuth in degrees
     ]

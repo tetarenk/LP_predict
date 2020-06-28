@@ -6,7 +6,6 @@
 INPUT: (1) sim_start: proposed start date 
        (2) sim_end: proposed end date
        (3) Blocked out dates for each instrument
-       (4) Observing blocks for large programs file (with start/end dates of each scheduled program block)
        (optional) Calibrator lists for SCUBA-2, HARP, and Pointing Cals
 
 OUTPUT: (1) File summary of simulation results detailing the predicted number of hours observed/remaining for each project
@@ -19,6 +18,7 @@ OUTPUT: (1) File summary of simulation results detailing the predicted number of
         (7) Incremental program completion chart
         (8) Bar plot of totals (remaining hrs in each weather band) per program
         (9) Bar plot of total remaining hrs split by weather band and instrument
+        (10) Program specific statistics; Transient (record of which months each target was observed), PITCH-BLACK (record of which semesters contained a campaign)
 
 NOTES: - This script is meant to be run on an EAO computer. If you want to run this script on any machine you need to generate the
 following on an EAO machine first:
@@ -27,9 +27,10 @@ following on an EAO machine first:
 Details are provided below in the user input and SQL queries sections of the script.
 - Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, pandas, mysql-connector-python.
 -Works in both Python 2 and 3.
+-If get error about astropy quantities in scheduler to table task, open scheduling.py in astroplan packages and edit line 303
 
 Written by: Alex J. Tetarenko
-Last Updated: Oct 18, 2019
+Last Updated: June 27, 2020
 '''
 
 #packages to import
@@ -45,6 +46,7 @@ from matplotlib.ticker import AutoMinorLocator
 import matplotlib.cm as cm
 import matplotlib.dates as mdates
 import datetime as datetime
+import astropy
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import ascii
@@ -52,6 +54,7 @@ from astropy.table import Table
 from astropy.time import Time,TimeDelta
 import warnings
 warnings.filterwarnings('ignore')
+import astroplan
 from astroplan import Observer, FixedTarget, AltitudeConstraint, is_observable, ObservingBlock, observability_table
 from astroplan.constraints import TimeConstraint,AltitudeConstraint,SunSeparationConstraint
 from astroplan.scheduling import PriorityScheduler, Schedule, Transitioner,Scheduler, Scorer,TransitionBlock
@@ -62,6 +65,8 @@ from collections import defaultdict
 from getwvm import get_wvm_fromdisk, get_sampled_values
 import time
 import sys
+from datetime import date, timedelta
+from itertools import cycle 
 #omp-python import
 if sys.version_info.major==2:
 	sys.path.append('/jac_sw/omp/python/lib/')
@@ -69,6 +74,15 @@ else:
 	#Sarah's python 3 version currently lives here, path will be changed at some point
 	sys.path.append('/net/kapili/export/data/sgraves/software/omp-python/lib')
 from omp.db.part.arc import ArcDB
+
+print('##############')
+print('Using the following packages:\n')
+print('astropy ',astropy.__version__)
+print('matplotlib ',mpl.__version__)
+print('numpy ',np.__version__)
+print('astroplan ',astroplan.__version__)
+print('pandas ',pd.__version__)
+print('##############\n')
 
 
 
@@ -128,7 +142,7 @@ class JCMTScheduler(Scheduler):
             b.observer = self.observer
         current_time = self.schedule.start_time
         while (len(blocks) > 0) and (current_time < self.schedule.end_time):
-            print(current_time)# first compute the value of all the constraints for each block
+            # first compute the value of all the constraints for each block
             # given the current starting time
             block_transitions = []
             block_constraint_results = []
@@ -308,8 +322,9 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 	return(tot,inst,remainwb_tally)
 
 def transform_blocks(blocks_file):
-	'''Reads in observing blocks data file. We make sure to properly deal with the irregular observing blocks data file,
-	 which has inconsistent columns.'''
+	'''**(Only used for old version of script prior to switch to remote observing)**
+	Reads in observing blocks data file. We make sure to properly deal with the irregular observing blocks data file,
+	which has inconsistent columns.'''
 	newfile=blocks_file.strip('.txt')+'_corr.txt'
 	f=open(newfile,'w')
 	with open(blocks_file, 'r') as ins:
@@ -328,7 +343,8 @@ def transform_blocks(blocks_file):
 		guess=False,data_start=0,names=['date_start','date_end','program','extra'])
 	return(Blocks)
 def calc_blocks(Blocks,sim_start,sim_end):
-	'''Calculates observing blocks in MJD, and keeps track of which program has priority.'''
+	'''**(Only used for old version of script prior to switch to remote observing)**
+	Calculates observing blocks in MJD, and keeps track of which program has priority.'''
 	OurBlocks=[]
 	firstprog=[]
 	for kk in range(0,len(Blocks)):
@@ -341,6 +357,45 @@ def calc_blocks(Blocks,sim_start,sim_end):
 			else:
 				firstprog.append([Blocks[kk]['program'],Blocks[kk]['extra']])
 	return(OurBlocks,firstprog)
+
+def create_blocks(startdate,enddate):
+	'''Simulate a JCMT schedule, based on the average nights in each queue per semester, and writes to a file.
+	We start at the sim_start date, cycle through the sequence PI, LAP, PI, LAP, PI, LAP, PI, LAP, UH, DDT, where
+	PI and LAP are 5 night blocks, UH is a 4 night block, and DDT is one night, and end at sim_end date.
+	NOTE: M20AL008 is a ToO and allowed to run on LAP, PI, and DDT nights, but not during the UH queue.
+	'''
+	sdate = date(int(startdate.split('-')[0]), int(startdate.split('-')[1]), int(startdate.split('-')[2]))
+	edate = date(int(enddate.split('-')[0]), int(enddate.split('-')[1]), int(enddate.split('-')[2]))
+	delta = edate - sdate
+	blocks1=[]
+	blocks2=[]
+	priority=[]
+	sequence=['PI','LAP','PI','LAP','PI','LAP','PI','LAP','UH','DDT']
+	list_cycle = cycle(sequence)
+	current=sdate
+	for i in range(delta.days + 1):
+		nex=next(list_cycle)
+		if current < (edate):
+			if nex in ['PI','LAP']:
+				blo=5
+			elif nex=='UH':
+				blo=4
+			else:
+				blo=1
+			if i==0:
+				day1 = sdate + timedelta(days=i)
+			else:
+				day1 = day2
+			day2 = day1 + timedelta(days=blo)
+			if day2 > edate:
+				day2 = edate
+			blocks1.append(day1.strftime("%Y%m%d"))
+			blocks2.append(day2.strftime("%Y%m%d"))
+			priority.append(nex)
+			current=day2
+	ascii.write([blocks1,blocks2,priority],path_dir+'model_obs_blocks.txt',names=['date_start','date_end','program'])
+		
+
 
 def read_cal(table,cal_table):
 	'''Reads in calibrator data files.
@@ -442,8 +497,8 @@ def get_time_blocks(obsn,day,jcmt):
 	for i in range(0,int(obsn)):
 		t1=(st0).datetime+(i)*datetime.timedelta(hours=1)
 		t2=(st1).datetime+(i)*datetime.timedelta(hours=1)
-		lst_list.append((Time(str(Time(t1)),format='iso',scale='utc',location=(jcmt.location.longitude,jcmt.location.latitude)).sidereal_time('apparent').value,\
-			Time(str(Time(t2)),format='iso',scale='utc',location=(jcmt.location.longitude,jcmt.location.latitude)).sidereal_time('apparent').value))
+		lst_list.append((Time(str(Time(t1)),format='iso',scale='utc',location=(jcmt.location.lon,jcmt.location.lat)).sidereal_time('apparent').value,\
+			Time(str(Time(t2)),format='iso',scale='utc',location=(jcmt.location.lon,jcmt.location.lat)).sidereal_time('apparent').value))
 	return(lst_list)
 
 
@@ -456,7 +511,7 @@ def get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile=''):
 		#sim_years=4
 		prev_years=Time(sim_start,format='iso').datetime.year-sim_years
 		prev_yeare=Time(sim_end,format='iso').datetime.year-sim_years
-		print(prev_years)
+		#print(prev_years)
 		startdatewvm=Time(str(prev_years)+'-'+sim_start.split('-')[1]+'-'+sim_start.split('-')[2],format='iso').datetime
 		enddatewvm=Time(str(prev_yeare)+'-'+'12-31',format='iso').datetime
 		wvmvalues=get_wvm_fromdisk(startdatewvm,enddatewvm)
@@ -536,19 +591,19 @@ def get_lst(sched,unused_ind,jcmt):
 	start=sched['start time (UTC)'][unused_ind]
 	end=sched['end time (UTC)'][unused_ind]
 	for i in range(0,len(start)):
-		lst_list.append((Time(start[i],format='iso',scale='utc',location=(jcmt.location.longitude,jcmt.location.latitude)).sidereal_time('apparent').value,\
-			Time(end[i],format='iso',scale='utc',location=(jcmt.location.longitude,jcmt.location.latitude)).sidereal_time('apparent').value))
+		lst_list.append((Time(start[i],format='iso',scale='utc',location=(jcmt.location.lon,jcmt.location.lat)).sidereal_time('apparent').value,\
+			Time(end[i],format='iso',scale='utc',location=(jcmt.location.lon,jcmt.location.lat)).sidereal_time('apparent').value))
 	return(lst_list)
 
-def priority_choose(tau,m,tau_max,FP,LAPprograms):
+def priority_choose(tau,m,tau_max,LAPprograms):
 	'''Calculates scaled priorities of MSBs.'''
-	#priority goes (1) faults [so they always happen at same rate], (2) block program, (3) weather band, (4) overall priority
+	#priority goes (1) faults [so they always happen at same rate], (2) M20AL008 ToO program, (3) weather band, (4) overall priority
 	tab=LAPprograms['projectid','tagpriority']
 	tab['scaled_p']=[i for i in range(1,len(LAPprograms['projectid'])+1)]
 	p=tab['scaled_p'][np.where(tab['projectid']==m)[0]]
 	WBandDay=int(get_wband(tau).split(' ')[1])
 	WBandTar=int(get_wband(tau_max).split(' ')[1])
-	if m.lower() in FP:
+	if m.lower=='m20al008':
 		priority=2
 	else:
 		if WBandDay==WBandTar:
@@ -569,7 +624,7 @@ def bin_lst(bin_start,bin_end,lst_tally):
                 bin_hrs[i]=bin_hrs[i]+(lst_tally[j][1]-bin_start[i])
     return(bin_hrs)
 def elevationcheck(jcmt,mjd,target):
-	'''Some program (e.g., M17BL002) can have low elevation sources, so this checks if they transit below 40 deg,
+	'''Some programs (e.g., M17BL002) can have low elevation sources, so this checks if they transit below 40 deg,
 	and adjusts elevation limit for these sources.'''
 	date=Time(mjd,format='mjd').iso.split(' ')[0]
 	airmass=jcmt.altaz(Time(date)+np.linspace(-12,12,100)*u.hour,target).secz
@@ -580,7 +635,19 @@ def elevationcheck(jcmt,mjd,target):
 	else:
 		constraint=30.
 	return(constraint)
-def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total_observed,FP,m16al001_tally,\
+
+def check_semester(mjd):
+	'''Returns the appropriate semester string (e.e., 2020A) given an MJD date
+	'''
+	year=Time(mjd,format='mjd',scale='utc').iso.split('-')[0]
+	month=Time(mjd,format='mjd',scale='utc').iso.split('-')[1]
+	if month in ['02','03','04','05','06','07']:
+		sem=year+'A'
+	else:
+		sem=year+'B'
+	return(sem)
+
+def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total_observed,FP,m16al001_tally,m20al008_tally,\
 	SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status):
 	'''Simulates observations of Large Programs over specified observing block.'''
 
@@ -611,7 +678,10 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			obsn=13.
 			#set up general elevation constraints
 			constraints = [AltitudeConstraint(min=0*u.deg)]
-		tot_tally.append(obsn)
+		# we will only count the LAP nights in the tally of availale time for large programs, even though M20AL008 can run in the
+		# PI and DDT queues as well.
+		if FP=='LAP':
+			tot_tally.append(obsn)
 		WBand=get_wband(tau_mjd[k])
 		wb_usage_tally['Available'][WBand].append(obsn)
 		#make a target list for the night (we keep track of target, MSB time, priority, and program),
@@ -624,7 +694,6 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 		ta=[]
 		configu=[]
 		for m in LAPprograms['projectid']:
-			#if m in ['M16AL001']:#['M16AL001','M16AL005','M16AL006','M17BL001','M17BL002']#,'M17BL004','M17BL005','M17BL006','M17BL007','M17BL009','M17BL010','M17BL011']:
 			if LAPprograms['taumax'][np.where(LAPprograms['projectid']==m.upper())[0]] >= tau_mjd[k]:
 				msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
 				target_table=msbs['target','ra2000', 'dec2000']
@@ -636,9 +705,11 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 				for j in range(0,len(target_table['target'])):
 					blackout_dates=bad_block(obs_time_table['instrument'][j],SCUBA_2_unavailable,HARP_unavailable,RU_unavailable)
 					if (obs_time_table['remaining'][j] >0 and obs_time_table['taumax'][j] >= tau_mjd[k] and obs_mjd[k] not in blackout_dates):
-						#The m16al001 program is to run on a monthly basis, so if we are dealing with that
+						#The m16al001/m20AL007 program is to run on a monthly basis, so if we are dealing with that
 						#program we must check whether each target has been observed in the current month yet.
-						if m != 'M16AL001':
+						#The m20al008 program is a ToO (can run in LAP, PI and DDT queues), 6 targets, 2 of which will do 16x4hour observations and 4 will do 8x4hours observations.
+						#So, we restrict to one 4 hour obs per night, 1 source campaign to start per 6 month semeseter
+						if m != ['M16AL001','M20AL007','M20AL008'] and FP=='LAP':
 							for jj in range(0,obs_time_table['remaining'][j]):
 								targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
@@ -650,14 +721,14 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 								else:
 									ta.append(AltitudeConstraint(min=30*u.deg))
 								#assign priority
-								priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],FP,LAPprograms))
+								priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],LAPprograms))
 								if obs_time_table['instrument'][j] == 'RXA3M':
 									msb_time.append((1.25/2.2)*obs_time_table['timeest'][j]*u.second)
 								else:
 									msb_time.append(1.25*obs_time_table['timeest'][j]*u.second)
 								configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j)+'_'+str(jj))
 								prog.append(m.lower())
-						else:
+						elif m in ['M16AL001','M20AL007'] and FP=='LAP':
 							#we keep track of the dates each target in the m16al001 program is observed through the m16al001_tally dictionary,
 							#so we need to first check if the target is present in the dictionary yet
 							dates_obs=[all(getattr(Time(obs_mjd[k], format='mjd', scale='utc').datetime,x)==getattr(mon.datetime,x) for x in ['year','month']) for mon in m16al001_tally[target_table['target'][j]]]
@@ -666,7 +737,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 								tc.append(TimeConstraint(time_range[0], time_range[1]))
 								#assign priority
-								priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],FP,LAPprograms))
+								priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],LAPprograms))
 								msb_time.append(1.25*get_m16al001_time(tau_mjd[k])*u.second)
 								configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j))
 								prog.append(m.lower())
@@ -678,16 +749,45 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 										dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 									tc.append(TimeConstraint(time_range[0], time_range[1]))
 									#assign priority
-									priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],FP,LAPprograms))
+									priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],LAPprograms))
 									msb_time.append(1.25*get_m16al001_time(tau_mjd[k])*u.second)
 									configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j))
 									prog.append(m.lower())
 									ta.append(AltitudeConstraint(min=30*u.deg))
+						elif m=='M20AL008' and FP in ['LAP','PI','DDT']:
+							# get current semester
+							current_sem=check_semester(obs_mjd[k])
+							#if no targets have been observed yet, or a target has already started a campaign, add it to target list
+							if len(m20al008_tally.keys())==0 or target_table['target'][j] in m20al008_tally.keys():
+								targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
+									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
+								tc.append(TimeConstraint(time_range[0], time_range[1]))
+								priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],LAPprograms))
+								msb_time.append(1.25*obs_time_table['timeest'][j]*u.second)
+								configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j))
+								prog.append(m.lower())
+								ta.append(AltitudeConstraint(min=30*u.deg))
+							#if a target has not started a campaign yet, check if another target is being observed already this current semester
+							#only add to target list if this is not the case
+							elif target_table['target'][j] not in m20al008_tally.keys():
+								if not any(x==current_sem for x in m20al008_tally.values()):
+									targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
+									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
+									tc.append(TimeConstraint(time_range[0], time_range[1]))
+									priority.append(priority_choose(tau_mjd[k],m,obs_time_table['taumax'][j],LAPprograms))
+									msb_time.append(1.25*obs_time_table['timeest'][j]*u.second)
+									configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j))
+									prog.append(m.lower())
+									ta.append(AltitudeConstraint(min=30*u.deg))
+
+
 		#check if at least one target has been added to our potential target list
 		if len(targets)>0:
+			#print(targets)
 			#check at least one potential target is observable at some point in the night
 			ever_observable = is_observable([AltitudeConstraint(min=30*u.deg)], jcmt, targets, time_range=time_range,time_grid_resolution=0.75*u.hour)
 			frac_obs=observability_table([AltitudeConstraint(min=30*u.deg)], jcmt, targets, time_range=time_range,time_grid_resolution=0.75*u.hour)['fraction of time observable']
+			#print(ever_observable,frac_obs)
 			#add in some fault blocks - pick a pointing cal best observable for each half night and schedule a 1.5% of total night block == 3% total fault rate
 			callst1,names1,callst2,names2=pick_fault_targets(obs_mjd[k],obsn,path_dir)
 			mid_time=Time(Time((obs_mjd[k]+1), format='mjd', scale='utc').iso.split(' ')[0]+" 10:00")
@@ -782,13 +882,15 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			#cal_tally.append(caltime)
 
 			#FOR TESTING ONLY--
-			fig=plt.figure(figsize = (14,10))
-			plot_schedule_airmass(schedule,show_night=True)
-			plt.title(WBand)
-			lgd=plt.legend(loc = "upper right",ncol=10,fontsize=6,bbox_to_anchor=(1.05,1.15))
-			plt.savefig(path_dir+'sim_results/schedules/'+namemjd+'.png',bbox_tight='inches',bbox_extra_artists=(lgd,))
-			plt.close()
-			#input('s')
+			#only plot schedule when at least one target is observed
+			empty_ind=np.where(np.logical_and(np.logical_and(sched['target']!='Unused Time',sched['target']!='TransitionBlock'),sched['target']!='FAULT'))[0]
+			if len(empty_ind)>0:
+				fig=plt.figure(figsize = (14,10))
+				plot_schedule_airmass(schedule,show_night=True)
+				plt.title(WBand)
+				lgd=plt.legend(loc = "upper right",ncol=10,fontsize=6,bbox_to_anchor=(1.05,1.15))
+				plt.savefig(path_dir+'sim_results/schedules/'+namemjd+'.png',bbox_tight='inches',bbox_extra_artists=(lgd,))
+				plt.close()
 
 			#record what targets have been observed, updating the MSB files and recording total time observed for each program
 			for h in range(0,len(np.unique(sched['target']))):
@@ -797,9 +899,13 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 					prog=sched['configuration'][np.where(sched['target']==tar)[0][0]]['program']
 					msbs=ascii.read(path_dir+'program_details_sim/'+prog+'-project-info.list')
 					num_used=len(np.array(sched['duration (minutes)'][np.where(sched['target']==tar)[0]]))
-					if prog=='m16al001':
+					if prog=='m16al001' or prog=='m20al007':
 						tim_used=float(msbs['timeest'][np.where(msbs['target']==tar)[0][0]])/3600.
 						m16al001_tally[tar].append(Time(obs_mjd[k],format='mjd',scale='utc'))
+					elif prog=='m20al008':
+						tim_used=float(msbs['timeest'][np.where(msbs['target']==tar)[0][0]])/3600.
+						if tar not in m20al008_tally.keys():
+							m20al008_tally[tar]=check_semester(obs_mjd[k])
 					else:
 						tim_used=np.sum(np.array(sched['duration (minutes)'][np.where(sched['target']==tar)[0]]))/60./1.25
 					if tim_used >0:
@@ -839,10 +945,10 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			status='not complete'
 		else:
 			status='complete'
-	return total_observed,m16al001_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status
+	return total_observed,m16al001_tally,m20al008_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status
 
 def incremental_comprate(program_list,dats,pers,block,total_observed,RH):
-	'''Keep track of program progress throughout simualtion.'''
+	'''Keep track of program progress throughout simulation.'''
 	for ii in range(0,len(program_list)):
 		#print ii
 		st=str(block['date_start'])
@@ -858,7 +964,6 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 	'''Make LST histogram plots for remaining MSBs.'''
 	lst_tally2=defaultdict(list)
 	for m in prog_list:
-		#if m.upper() not in ['M17BL001','M17BL010','M17BL006','M17BL007']:
 		date=Time(sim_end+' 03:30')
 		msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
 		for j in range(0,len(msbs['target'])):
@@ -871,8 +976,8 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 				startt=(transit_time-TimeDelta(lengthmsb/2.,format='sec')).iso
 				endt=(transit_time+TimeDelta(lengthmsb/2.,format='sec')).iso
 				for k in range(0,msbs['remaining'][j]):
-					lst_list.append((Time(startt,format='iso',scale='utc',location=(jcmt.location.longitude,jcmt.location.latitude)).sidereal_time('apparent').value,\
-						Time(endt,format='iso',scale='utc',location=(jcmt.location.longitude,jcmt.location.latitude)).sidereal_time('apparent').value))
+					lst_list.append((Time(startt,format='iso',scale='utc',location=(jcmt.location.lon,jcmt.location.lat)).sidereal_time('apparent').value,\
+						Time(endt,format='iso',scale='utc',location=(jcmt.location.lon,jcmt.location.lat)).sidereal_time('apparent').value))
 				lst_tally2[WBand].extend(lst_list)
 	#plot
 	fig=plt.figure()
@@ -903,14 +1008,15 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 	fig.subplots_adjust(wspace=0.5,hspace=1)
 	plt.savefig(path_dir+'sim_results/unused_RA_remaining.pdf',bbox_inches='tight')
 
+
 #############################################################
 #User Input
 #############################################################
 start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
-sim_start='2019-10-18'
-sim_end='2023-02-01'
+sim_start='2020-06-26'
+sim_end='2021-02-01'
 
 flag='fetch'
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
@@ -920,7 +1026,6 @@ wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
 #AND place output file in path_dir
 #THEN (a) enter file name in wvmfile variable above, (b) change fetch to file
 
-blocks_file=path_dir+'LAP-UT-blocks-real-and-model-blocks.txt'
 
 #dates the instruments are unavailable in MJD
 SCUBA_2_unavailable=[]
@@ -935,8 +1040,8 @@ if not os.path.isdir(os.path.join(path_dir, 'program_details_fix/')):
     os.mkdir(os.path.join(path_dir, "program_details_fix"))
 if not os.path.isdir(os.path.join(path_dir, 'program_details_sim/')):
     os.mkdir(os.path.join(path_dir, "program_details_sim"))
-if not os.path.isdir(os.path.join(path_dir, 'sim_results/')):
-    os.mkdir(os.path.join(path_dir, "sim_results"))
+if not os.path.isdir(os.path.join(path_dir, 'sim_results/schedules/')):
+    os.mkdir(os.path.join(path_dir, "sim_results/schedules"))
 
 #############################################################
 #SQL Queries using the omp-python code
@@ -954,12 +1059,23 @@ with open(path_dir+'LP_priority.txt','w') as filehandle:
 		filehandle.write('	'.join(map(str,listitem))+'\n')
 #read in LAP details
 LAPprograms_file=path_dir+'LP_priority.txt'
+#get rid of M20AL022 and M20AL026 in the list as no MSBs uploaded
+with open(LAPprograms_file,'r+') as f: 
+	lines=f.read() 
+	f.seek(0) 
+	for line in lines.split('\n'): 
+		if 'M20AL022' not in line and 'M20AL026' not in line: 
+			f.write(line + '\n') 
+	f.truncate()
+####
 LAPprograms=ascii.read(LAPprograms_file)
 LAPprograms.sort('tagpriority')
 print('Current Large programs:\n')
-print(LAPprograms, '\n')
+LAPprograms.pprint_all()
+print('\n')
 RH=LAPprograms['projectid','remaining_hrs','allocated_hrs']
 program_list=np.array(LAPprograms['projectid'])
+
 
 #create MSB files for all LAPs
 querystring2='SELECT m.projectid, m.msbid, m.remaining, m.obscount, m.timeest, (m.remaining*m.timeest/60/60) as msb_total_hrs,  o.instrument, o.type, o.pol, o.target, o.ra2000,o.dec2000,m.taumin,m.taumax FROM omp.ompmsb as m JOIN omp.ompobs as o ON m.msbid=o.msbid WHERE m.projectid=%(proj)s AND m.remaining >=1;' 
@@ -979,6 +1095,18 @@ for prog in program_list:
 #AND place (1) in path_dir and (2)s in path_dir+'program_details_org/'
 #THEN uncomment the following line
 #LAPprograms_file=path_dir+'LP_priority.txt'
+
+#create dummy MSBs for PITCH-BLACK - will need to update manually as program progresses...
+m='M20AL008'
+file_PB=open(path_dir+'program_details_org/'+m.lower()+'-project-info.list','w')
+file_PB.write('projectid	msbid	remaining	obscount	timeest	msb_total_hrs	instrument	type	pol	target	ra2000	dec2000	taumin	taumax\n')
+file_PB.write('M20AL008	000001	16	0	14400.	64.	SCUBA-2	i-daisy	0	BHXB1	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.write('M20AL008	000002	16	0	14400.	64.	SCUBA-2	i-daisy	0	BHXB2	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.write('M20AL008	000003	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB3	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.write('M20AL008	000004	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB4	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.write('M20AL008	000005	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB5	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.write('M20AL008	000006	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB6	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.close()
 #############################################################
 
 
@@ -991,6 +1119,8 @@ os.system('rm -rf '+path_dir+'sim_results/*.txt')
 os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_details_sim')
 
 print('Predicting Large Program observations between '+sim_start+' and '+sim_end+' ...\n')
+
+print('NOTE: M20AL022 and M20AL026 have been manually removed from project list as there are no MSBs present.')
 
 #correct MSB files to match allocation
 correct_msbs(LAPprograms,path_dir)
@@ -1005,14 +1135,17 @@ if 'RXA3M' in instruments_10:
 	RH['remaining_hrs'][RH['projectid']=='M17BL010']=np.round(RH['remaining_hrs'][RH['projectid']=='M17BL010']/2.2,2)
 	RH['allocated_hrs'][RH['projectid']=='M17BL010']=np.round(RH['allocated_hrs'][RH['projectid']=='M17BL010']/2.2,2)
 
+
 #calculate observing blocks within the selected simulation dates
-Blocks=transform_blocks(blocks_file)
-OurBlocks,firstprog=calc_blocks(Blocks,sim_start,sim_end)
+create_blocks(sim_start,sim_end)
+OurBlocks=ascii.read(path_dir+'model_obs_blocks.txt')
+
 
 #run observation simulator for each observing block
 total_observed = {k:v for k,v in zip(program_list,np.zeros(len(program_list)))}
 finished_dates = {k:'not finished' for k in program_list}
 m16al001_tally=defaultdict(list)
+m20al008_tally={}
 wb_usage_tally={'Available':defaultdict(list),'Used':defaultdict(list),'Unused':defaultdict(list),'Cal':defaultdict(list)}
 for i in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']:
 	[wb_usage_tally[j][i].append(0) for j in wb_usage_tally.keys()]
@@ -1036,14 +1169,14 @@ for jj in range(0,len(OurBlocks)):
 	if status=='complete':
 		break
 	else:
-		FP=firstprog[jj]
-		total_observed,m16al001_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status)
+		FP=OurBlocks['program'][jj]
+		total_observed,m16al001_tally,m20al008_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,m20al008_tally,SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status)
 		dats,pers=incremental_comprate(program_list,dats,pers,OurBlocks[jj],total_observed,RH)
 		st=str(OurBlocks[jj]['date_start'])
 		en=str(OurBlocks[jj]['date_end'])
 		blockst.append(datetime.datetime(int(st[0:4]),int(st[4:6]), int(st[6:8])))
 		blockend.append(datetime.datetime(int(en[0:4]),int(en[4:6]), int(en[6:8])))
-		blockprog.append(OurBlocks[jj]['program'].upper())
+		blockprog.append(OurBlocks[jj]['program'])
 
 #calculate final results
 obs_hrs=[]
@@ -1062,7 +1195,8 @@ ascii.write([RH['projectid'],RH['allocated_hrs'],RH['remaining_hrs'],obs_hrs,rem
 
 new=ascii.read(path_dir+'sim_results/results.txt')
 print('\nFinal Prediction Results...\n')
-print(new)
+new.pprint_all()
+
 
 #plot final results in a bar chart
 fig=plt.figure()
@@ -1100,10 +1234,10 @@ mpl.rcParams['xtick.direction']='in'
 mpl.rcParams['ytick.direction']='in'
 ax=plt.subplot(111)
 colors = cm.rainbow(np.linspace(0, 1, len(program_list)))
-colordict={}
-colordict['M16AL004']='gray'
+colordict={'PI': 'y','LAP': 'm','UH': 'g','DDT': 'b',}
+#colordict['M16AL004']='gray'
 for jj in range(0,len(program_list)):
-	colordict[program_list[jj]]=colors[jj]
+	#colordict[program_list[jj]]=colors[jj]
 	ax.plot(dats[jj],np.array(pers[jj])*100.,color=colors[jj],ls='-',marker='o',label=program_list[jj])
 for j in range(0,len(blockst)):
 	ax.axvspan(blockst[j], blockend[j], facecolor=colordict[blockprog[j]], alpha=0.3)
@@ -1122,7 +1256,7 @@ ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m-%Y"))
 plt.setp(ax.get_xticklabels(), rotation=45, horizontalalignment='right') 
 ax.set_title('Completion as of '+str(blockend[-1]).split(' ')[0])
 ax.set_ylim(0,100)
-ax.legend(loc='upper right',bbox_to_anchor=(1.45,1.))
+ax.legend(loc='upper right',bbox_to_anchor=(1.35,1.1),fontsize=10)
 ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
 ax.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
 ax.tick_params(axis='y',which='major', labelsize=9,length=5,width=1.5,right='on',left='on')
@@ -1137,14 +1271,14 @@ plt.savefig(path_dir+'sim_results/prog_completion.pdf',bbox_inches='tight')
 fileo=open(path_dir+'sim_results/results.txt','a')
 fileo.write("\nTotal Allocated Hrs for Large Programs: "+str(round(np.sum(RH['allocated_hrs']),2))+'\n')
 fileo.write("Total Remaining Hrs for Large Programs before Simulation: "+str(round(np.sum(RH['remaining_hrs']),2))+'\n')
-fileo.write("Total Hrs Available for Large Program Observing in Simulation:"+str(round(np.sum(tot_tally),2))+'\n')
+fileo.write("Total Hrs Available for Large Program Observing in Simulation (only LAP queue):"+str(round(np.sum(tot_tally),2))+'\n')
 fileo.write("Total Observed Hrs for Large Programs in Simulation: "+str(round(np.sum(obs_hrs),2))+'\n')
 fileo.write("Total Remaining Hrs for Large Programs after Simulation: "+str(round(np.sum(remaining_new),2))+'\n')
 fileo.write("Total Hrs lost to weather (i.e., nights where nothing observed):"+str(np.sum(nothing_obs))+'\n')
 fileo.close()
 print("Total Allocated Hrs for Large Programs: ",round(np.sum(RH['allocated_hrs']),2))
 print("Total Remaining Hrs for Large Programs before Simulation: ",round(np.sum(RH['remaining_hrs']),2))
-print("Total Hrs Available for Large Program Observing in Simulation:", round(np.sum(tot_tally),2))
+print("Total Hrs Available for Large Program Observing in Simulation (only LAP queue):", round(np.sum(tot_tally),2))
 print("Total Observed Hrs for Large Programs in Simulation: ",round(np.sum(obs_hrs),2))
 print("Total Remaining Hrs for Large Programs after Simulation: ",round(np.sum(remaining_new),2))
 print("Total Hrs lost to weather (i.e., nights where nothing observed):", np.sum(nothing_obs))
@@ -1214,15 +1348,26 @@ ax2.xaxis.set_minor_locator(AutoMinorLocator(5))
 fig.subplots_adjust(wspace=0.5,hspace=1)
 plt.savefig(path_dir+'sim_results/prog_remaining_wplusinst.pdf',bbox_inches='tight')
 
-#optionally print out month/year combos that each source in m16al001 was observed to screen and append to results file
-print('\nM16AL001 Tally:\n')
+#optionally print out month/year combos that each source in the Transient program (m16al001,m20al007) was observed to screen and append to results file
+print('\nTransient (M16AL001/M20AL007) Tally:\n')
 fileo=open(path_dir+'sim_results/results.txt','a')
-fileo.write('\nM16AL001 Tally:\n')
+fileo.write('\nTransient (M16AL001/M20AL007) Tally:\n')
 for key in m16al001_tally.keys():
 	print(key+':')
 	fileo.write('\n'+key+'\n')
 	print(",".join(['('+str(i.datetime.month)+','+str(i.datetime.year)+')' for i in m16al001_tally[key]]))
 	fileo.write(",".join(['('+str(i.datetime.month)+','+str(i.datetime.year)+')' for i in m16al001_tally[key]]))
+	fileo.write('\n')
+fileo.close()
+#optionally print out semesters that each source in the PITCH-BLACK program (m20al008) was triggered in
+print('\nPITCH-BLACK (M20AL008) Tally:\n')
+fileo=open(path_dir+'sim_results/results.txt','a')
+fileo.write('\nPITCH-BLACK (M20AL008) Tally:\n')
+for key in m20al008_tally.keys():
+	print(key+':')
+	fileo.write('\n'+key+'\n')
+	print(m20al008_tally[key])
+	fileo.write(m20al008_tally[key])
 	fileo.write('\n')
 fileo.close()
 
