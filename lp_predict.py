@@ -30,7 +30,7 @@ Details are provided below in the user input and SQL queries sections of the scr
 -If get error about astropy quantities in scheduler to table task, open scheduling.py in astroplan packages and edit line 303
 
 Written by: Alex J. Tetarenko
-Last Updated: June 27, 2020
+Last Updated: July 06, 2020
 '''
 
 #packages to import
@@ -142,7 +142,7 @@ class JCMTScheduler(Scheduler):
             b.observer = self.observer
         current_time = self.schedule.start_time
         while (len(blocks) > 0) and (current_time < self.schedule.end_time):
-            # first compute the value of all the constraints for each block
+            print(current_time)# first compute the value of all the constraints for each block
             # given the current starting time
             block_transitions = []
             block_constraint_results = []
@@ -203,76 +203,80 @@ def correct_msbs(LAPprograms,path_dir):
 	print('Correcting MSBS...\n')
 	print('(- too much in MSBs, + too little in MSBs)')
 	for m in program_list:
-		msbs=ascii.read(path_dir+'program_details_org/'+m.lower()+'-project-info.list',names=('projectid','msbid','remaining','obscount','timeest','msb_total_hrs','instrument','type','pol','target','ra2000','dec2000','taumin','taumax'))
-		remaining=LAPprograms['remaining_hrs'][np.where(LAPprograms['projectid']==m)[0][0]]
-		#check no target repeats first
-		cor=[(float(i),float(j)) for i,j in zip(msbs['ra2000'],msbs['dec2000'])]
-		unique_srcs=list(set(cor))
-		projid=[]
-		msbid=[]
-		remain=[]
-		obsc=[]
-		timeest=[]
-		inst=[]
-		ty=[]
-		pol=[]
-		targ=[]
-		tmin=[]
-		tmax=[]
-		for src in unique_srcs:
-			ind0=np.where(np.logical_and(src[0]==msbs['ra2000'],src[1]==msbs['dec2000']))[0][0]
-			projid.append(msbs['projectid'][ind0])
-			msbid.append(msbs['msbid'][ind0])
-			inst.append(msbs['instrument'][ind0])
-			ty.append(msbs['type'][ind0])
-			pol.append(msbs['pol'][ind0])
-			tmin.append(msbs['taumin'][ind0])
-			tmax.append(msbs['taumax'][ind0])
-			targ.append(msbs['target'][ind0])
-			timeest.append(msbs['timeest'][ind0])
-			re=[]
-			ob=[]
-			for i in range(0,len(msbs['ra2000'])):
-				if msbs['ra2000'][i]==src[0] and msbs['dec2000'][i]==src[1]:
-					re.append(msbs['remaining'][i])
-					ob.append(msbs['obscount'][i])
-			remain.append(np.sum(re))
-			obsc.append(np.sum(ob))
-		ascii.write([projid,msbid,remain,obsc,timeest,(np.array(timeest)*np.array(remain))/3600.,inst,\
-			ty,pol,targ,[src[0] for src in unique_srcs], [src[1] for src in unique_srcs],tmin,tmax],\
-			path_dir+'program_details_fix/'+m.lower()+'-project-info.list',names=msbs.colnames)
-		#now start with fixed msb file to check time allocation matches msb times
-		msbs=ascii.read(path_dir+'program_details_fix/'+m.lower()+'-project-info.list')
-		msb_remaining=np.sum(msbs['msb_total_hrs'])
-		diff= remaining - msb_remaining #negative is too much, + is too little
-		print('Correcting MSBs file for: ',m,' --> Time difference =', round(diff,2))
-		if diff != 0.:
-			coords=SkyCoord(ra=msbs['ra2000']*u.rad,dec=msbs['dec2000']*u.rad,frame='icrs')
-			sep=coords[0].separation(coords)
-			repeats=int(remaining/(msbs['timeest'][0]/3600.))
-			if np.all(sep<1.*u.degree):
-				ascii.write([[msbs['projectid'][0]],[msbs['msbid'][0]],[repeats],[msbs['obscount'][0]],\
-				[msbs['timeest'][0]],[(msbs['timeest'][0]*repeats)/3600.],[msbs['instrument'][0]],\
-				[msbs['type'][0]],[msbs['pol'][0]],[msbs['target'][0]],[msbs['ra2000'][0]],[msbs['dec2000'][0]],\
-				[msbs['taumin'][0]],[msbs['taumax'][0]]],\
-				path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)	
-			else:
-				hrs_add=np.abs(diff)#int(abs(diff)/np.max((msbs['timeest'][0]/3600.)))
-				remain=np.array(msbs['remaining'])
-				t_est=np.array(msbs['timeest'])
-				while hrs_add >0.:
-					for i in range(0,len(msbs['target'])):
-						if hrs_add>0. and remain[i]>0:
-							remain[i]=remain[i]+np.sign(diff)
-							hrs_add=hrs_add-(t_est[i]/3600.)#-1
-						else:
-							remain[i]=remain[i]
-							hrs_add=hrs_add
-				ascii.write([msbs['projectid'],msbs['msbid'],remain,msbs['obscount'],\
-				msbs['timeest'],(msbs['timeest']*remain)/3600.,msbs['instrument'],\
-				msbs['type'],msbs['pol'],msbs['target'],msbs['ra2000'],msbs['dec2000'],\
-				msbs['taumin'],msbs['taumax']],\
-				path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)
+		if m.lower() == 'm20al008':
+			os.system('cp -r '+path_dir+'program_details_org/'+m.lower()+'-project-info.list '+path_dir+'program_details_sim')
+		else:
+			#print(m)
+			msbs=ascii.read(path_dir+'program_details_org/'+m.lower()+'-project-info.list',names=('projectid','msbid','remaining','obscount','timeest','msb_total_hrs','instrument','type','pol','target','ra2000','dec2000','taumin','taumax'))
+			remaining=LAPprograms['remaining_hrs'][np.where(LAPprograms['projectid']==m)[0][0]]
+			#check no target repeats first
+			cor=[(float(i),float(j)) for i,j in zip(msbs['ra2000'],msbs['dec2000'])]
+			unique_srcs=list(set(cor))
+			projid=[]
+			msbid=[]
+			remain=[]
+			obsc=[]
+			timeest=[]
+			inst=[]
+			ty=[]
+			pol=[]
+			targ=[]
+			tmin=[]
+			tmax=[]
+			for src in unique_srcs:
+				ind0=np.where(np.logical_and(src[0]==msbs['ra2000'],src[1]==msbs['dec2000']))[0][0]
+				projid.append(msbs['projectid'][ind0])
+				msbid.append(msbs['msbid'][ind0])
+				inst.append(msbs['instrument'][ind0])
+				ty.append(msbs['type'][ind0])
+				pol.append(msbs['pol'][ind0])
+				tmin.append(msbs['taumin'][ind0])
+				tmax.append(msbs['taumax'][ind0])
+				targ.append(msbs['target'][ind0])
+				timeest.append(msbs['timeest'][ind0])
+				re=[]
+				ob=[]
+				for i in range(0,len(msbs['ra2000'])):
+					if msbs['ra2000'][i]==src[0] and msbs['dec2000'][i]==src[1]:
+						re.append(msbs['remaining'][i])
+						ob.append(msbs['obscount'][i])
+				remain.append(np.sum(re))
+				obsc.append(np.sum(ob))
+			ascii.write([projid,msbid,remain,obsc,timeest,(np.array(timeest)*np.array(remain))/3600.,inst,\
+				ty,pol,targ,[src[0] for src in unique_srcs], [src[1] for src in unique_srcs],tmin,tmax],\
+				path_dir+'program_details_fix/'+m.lower()+'-project-info.list',names=msbs.colnames)
+			#now start with fixed msb file to check time allocation matches msb times
+			msbs=ascii.read(path_dir+'program_details_fix/'+m.lower()+'-project-info.list')
+			msb_remaining=np.sum(msbs['msb_total_hrs'])
+			diff= remaining - msb_remaining #negative is too much, + is too little
+			print('Correcting MSBs file for: ',m,' --> Time difference =', round(diff,2))
+			if diff != 0.:
+				coords=SkyCoord(ra=msbs['ra2000']*u.rad,dec=msbs['dec2000']*u.rad,frame='icrs')
+				sep=coords[0].separation(coords)
+				repeats=int(remaining/(msbs['timeest'][0]/3600.))
+				if np.all(sep<1.*u.degree):
+					ascii.write([[msbs['projectid'][0]],[msbs['msbid'][0]],[repeats],[msbs['obscount'][0]],\
+					[msbs['timeest'][0]],[(msbs['timeest'][0]*repeats)/3600.],[msbs['instrument'][0]],\
+					[msbs['type'][0]],[msbs['pol'][0]],[msbs['target'][0]],[msbs['ra2000'][0]],[msbs['dec2000'][0]],\
+					[msbs['taumin'][0]],[msbs['taumax'][0]]],\
+					path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)	
+				else:
+					hrs_add=np.abs(diff)#int(abs(diff)/np.max((msbs['timeest'][0]/3600.)))
+					remain=np.array(msbs['remaining'])
+					t_est=np.array(msbs['timeest'])
+					while hrs_add >0.:
+						for i in range(0,len(msbs['target'])):
+							if hrs_add>0. and remain[i]>0:
+								remain[i]=remain[i]+np.sign(diff)
+								hrs_add=hrs_add-(t_est[i]/3600.)#-1
+							else:
+								remain[i]=remain[i]
+								hrs_add=hrs_add
+					ascii.write([msbs['projectid'],msbs['msbid'],remain,msbs['obscount'],\
+					msbs['timeest'],(msbs['timeest']*remain)/3600.,msbs['instrument'],\
+					msbs['type'],msbs['pol'],msbs['target'],msbs['ra2000'],msbs['dec2000'],\
+					msbs['taumin'],msbs['taumax']],\
+					path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)
 	print('\n')
 
 def time_remain_p_weatherband(LAPprograms,path_dir):
@@ -371,6 +375,7 @@ def create_blocks(startdate,enddate):
 	blocks2=[]
 	priority=[]
 	sequence=['PI','LAP','PI','LAP','PI','LAP','PI','LAP','UH','DDT']
+	#sequence=['PI','PI','PI','PI','DDT']
 	list_cycle = cycle(sequence)
 	current=sdate
 	for i in range(delta.days + 1):
@@ -527,16 +532,19 @@ def get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile=''):
 		data_daily=ascii.read(path_dir+'program_details_sim/writewvm_daily.csv',format='csv')
 	elif flag=='file':
 		data_daily=ascii.read(wvmfile,format='csv')
-	mjd = (Time(data_daily['isoTime'], format='iso', scale='utc').mjd)+(365.*sim_years)
-	tau = data_daily['median']
+	mjd_wvm = (Time(data_daily['isoTime'], format='iso', scale='utc').mjd)+(365.*sim_years)
+	#tau = data_daily['median']
 	mjd_predict=np.arange(Time(sim_start, format='iso', scale='utc').mjd,\
 		Time(sim_end, format='iso', scale='utc').mjd,1)
-	ind_start=np.where(mjd==Time(sim_start, format='iso', scale='utc').mjd)[0][0]
-	ind_end=np.where(mjd==Time(sim_end, format='iso', scale='utc').mjd)[0][0]
-	tau_predict=tau[ind_start:ind_end]
-	tau_predict.fill_value = 0.2
-	tau_predict_fill=tau_predict.filled()
-	return(mjd_predict,tau_predict_fill)
+	tau_predict=[]
+	for mjd in mjd_predict:
+		if mjd in mjd_wvm:
+			tau_predict.append(data_daily['median'][np.where(mjd_wvm==mjd)[0][0]])
+		else:
+			tau_predict.append(0.2)
+	tau_predict_array=np.array(tau_predict)
+	tau_predict_array[np.isnan(tau_predict_array)]=0.2
+	return(mjd_predict,tau_predict_array)
 
 def good_blocks(Blocks,mjd_predict,tau_predict):
 	'''Get MJDs and weather for the observing blocks.'''
@@ -637,11 +645,13 @@ def elevationcheck(jcmt,mjd,target):
 	return(constraint)
 
 def check_semester(mjd):
-	'''Returns the appropriate semester string (e.e., 2020A) given an MJD date
+	'''Returns the appropriate semester string (e.g., 2020A) given an MJD date
 	'''
 	year=Time(mjd,format='mjd',scale='utc').iso.split('-')[0]
 	month=Time(mjd,format='mjd',scale='utc').iso.split('-')[1]
-	if month in ['02','03','04','05','06','07']:
+	if month == '01':
+		sem=str(int(year)-1)+'B'
+	elif month in ['02','03','04','05','06','07']:
 		sem=year+'A'
 	else:
 		sem=year+'B'
@@ -664,6 +674,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 	#loop over all days in the current observing block
 	for k in range(0,len(obs_mjd)):
 		print('day:',obs_mjd[k])
+		pb_targets=[]
 		#A standard observing night will run from 5:30pm HST to 6:30am HST (13 hrs; times below are UTC!)
 		#if tau is at band 3 or better, EO is scheduled, and we observe till 10:30am HST (17 hrs)
 		if tau_mjd[k] < 0.12:
@@ -709,7 +720,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 						#program we must check whether each target has been observed in the current month yet.
 						#The m20al008 program is a ToO (can run in LAP, PI and DDT queues), 6 targets, 2 of which will do 16x4hour observations and 4 will do 8x4hours observations.
 						#So, we restrict to one 4 hour obs per night, 1 source campaign to start per 6 month semeseter
-						if m != ['M16AL001','M20AL007','M20AL008'] and FP=='LAP':
+						if m.upper() not in ['M16AL001','M20AL007','M20AL008'] and FP=='LAP':
 							for jj in range(0,obs_time_table['remaining'][j]):
 								targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
@@ -728,7 +739,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 									msb_time.append(1.25*obs_time_table['timeest'][j]*u.second)
 								configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j)+'_'+str(jj))
 								prog.append(m.lower())
-						elif m in ['M16AL001','M20AL007'] and FP=='LAP':
+						elif m.upper() in ['M16AL001','M20AL007'] and FP=='LAP':
+							#print('tar2',target_table['target'][j])
 							#we keep track of the dates each target in the m16al001 program is observed through the m16al001_tally dictionary,
 							#so we need to first check if the target is present in the dictionary yet
 							dates_obs=[all(getattr(Time(obs_mjd[k], format='mjd', scale='utc').datetime,x)==getattr(mon.datetime,x) for x in ['year','month']) for mon in m16al001_tally[target_table['target'][j]]]
@@ -754,11 +766,12 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 									configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j))
 									prog.append(m.lower())
 									ta.append(AltitudeConstraint(min=30*u.deg))
-						elif m=='M20AL008' and FP in ['LAP','PI','DDT']:
+						elif m.upper() =='M20AL008' and FP in ['LAP','PI','DDT']:
 							# get current semester
 							current_sem=check_semester(obs_mjd[k])
 							#if no targets have been observed yet, or a target has already started a campaign, add it to target list
-							if len(m20al008_tally.keys())==0 or target_table['target'][j] in m20al008_tally.keys():
+							if target_table['target'][j] in m20al008_tally.keys():
+								#pb_targets.append(target_table['target'][j])
 								targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 								tc.append(TimeConstraint(time_range[0], time_range[1]))
@@ -769,8 +782,10 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 								ta.append(AltitudeConstraint(min=30*u.deg))
 							#if a target has not started a campaign yet, check if another target is being observed already this current semester
 							#only add to target list if this is not the case
+							#During PI/DDT blocks, m20al008 is only program available. To prevent more then one target being observed in one night,
+							#we ensure that only one observable target is added to the target list.
 							elif target_table['target'][j] not in m20al008_tally.keys():
-								if not any(x==current_sem for x in m20al008_tally.values()):
+								if not any(x==current_sem for x in list(m20al008_tally.values())) and len(pb_targets)==0:
 									targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 									tc.append(TimeConstraint(time_range[0], time_range[1]))
@@ -779,15 +794,18 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 									configu.append(m.lower()+'_'+str(msbs['msbid'][j])+'_'+str(j))
 									prog.append(m.lower())
 									ta.append(AltitudeConstraint(min=30*u.deg))
+									tarpb=[FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
+									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j])]
+									frac_obspb=np.array(observability_table([AltitudeConstraint(min=30*u.deg)], jcmt, tarpb, time_range=time_range,time_grid_resolution=0.75*u.hour)['fraction of time observable'])
+									if frac_obspb[0]>=4./obsn:
+										pb_targets.append(target_table['target'][j])
 
 
 		#check if at least one target has been added to our potential target list
 		if len(targets)>0:
-			#print(targets)
 			#check at least one potential target is observable at some point in the night
 			ever_observable = is_observable([AltitudeConstraint(min=30*u.deg)], jcmt, targets, time_range=time_range,time_grid_resolution=0.75*u.hour)
 			frac_obs=observability_table([AltitudeConstraint(min=30*u.deg)], jcmt, targets, time_range=time_range,time_grid_resolution=0.75*u.hour)['fraction of time observable']
-			#print(ever_observable,frac_obs)
 			#add in some fault blocks - pick a pointing cal best observable for each half night and schedule a 1.5% of total night block == 3% total fault rate
 			callst1,names1,callst2,names2=pick_fault_targets(obs_mjd[k],obsn,path_dir)
 			mid_time=Time(Time((obs_mjd[k]+1), format='mjd', scale='utc').iso.split(' ')[0]+" 10:00")
@@ -848,7 +866,13 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			ever_observable = [False]
 			frac_obs=[0.]
 		#As long as we have an observable target, we proceed to scheduling for the night.
-		if np.any(ever_observable) and any(frac>=0.75/obsn for frac in frac_obs):
+		#In the LAP queue this means a target can be observed for at least 45 min (typical average MSB time)
+		#In PI or DDT queue, M20AP008 is oly program that can run, and we need 4 hours on source.
+		if FP in ['PI','DDT']:
+			ff=4.
+		elif FP=='LAP':
+			ff=0.75
+		if np.any(ever_observable) and any(frac>=ff/obsn for frac in frac_obs):
 			#set the slew rate of telescope between sources
 			slew_rate = 1.2*u.deg/u.second
 			transitioner = Transitioner(slew_rate)#, {'program':{'default':2*u.minute}})
@@ -883,14 +907,16 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 
 			#FOR TESTING ONLY--
 			#only plot schedule when at least one target is observed
-			empty_ind=np.where(np.logical_and(np.logical_and(sched['target']!='Unused Time',sched['target']!='TransitionBlock'),sched['target']!='FAULT'))[0]
-			if len(empty_ind)>0:
-				fig=plt.figure(figsize = (14,10))
+			#sometimes the plotting tools fails, we catch this with a try/except
+			fig=plt.figure(figsize = (14,10))
+			try:
 				plot_schedule_airmass(schedule,show_night=True)
 				plt.title(WBand)
 				lgd=plt.legend(loc = "upper right",ncol=10,fontsize=6,bbox_to_anchor=(1.05,1.15))
 				plt.savefig(path_dir+'sim_results/schedules/'+namemjd+'.png',bbox_tight='inches',bbox_extra_artists=(lgd,))
 				plt.close()
+			except TypeError:
+				print('no schedule plotted')
 
 			#record what targets have been observed, updating the MSB files and recording total time observed for each program
 			for h in range(0,len(np.unique(sched['target']))):
@@ -904,7 +930,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 						m16al001_tally[tar].append(Time(obs_mjd[k],format='mjd',scale='utc'))
 					elif prog=='m20al008':
 						tim_used=float(msbs['timeest'][np.where(msbs['target']==tar)[0][0]])/3600.
-						if tar not in m20al008_tally.keys():
+						if tar not in list(m20al008_tally.keys()):
 							m20al008_tally[tar]=check_semester(obs_mjd[k])
 					else:
 						tim_used=np.sum(np.array(sched['duration (minutes)'][np.where(sched['target']==tar)[0]]))/60./1.25
@@ -934,7 +960,9 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			wb_usage_tally['Cal'][WBand].append(0.)
 			lst_list=get_time_blocks(obsn,obs_mjd[k],jcmt)
 			lst_tally[WBand].extend(lst_list)
-			nothing_obs.append(obsn)
+			# we will only count the LAP nights in the tally of bad weather nights
+			if FP=='LAP':
+				nothing_obs.append(obsn)
 		#check if any programs are complete and record date
 		for m in LAPprograms['projectid']:
 			msbs=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
@@ -950,7 +978,6 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 def incremental_comprate(program_list,dats,pers,block,total_observed,RH):
 	'''Keep track of program progress throughout simulation.'''
 	for ii in range(0,len(program_list)):
-		#print ii
 		st=str(block['date_start'])
 		en=str(block['date_end'])
 		startime=(datetime.datetime(int(st[0:4]),int(st[4:6]), int(st[6:8])))
@@ -1015,7 +1042,7 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
-sim_start='2020-06-26'
+sim_start='2020-07-06'
 sim_end='2021-02-01'
 
 flag='fetch'
@@ -1101,29 +1128,31 @@ m='M20AL008'
 file_PB=open(path_dir+'program_details_org/'+m.lower()+'-project-info.list','w')
 file_PB.write('projectid	msbid	remaining	obscount	timeest	msb_total_hrs	instrument	type	pol	target	ra2000	dec2000	taumin	taumax\n')
 file_PB.write('M20AL008	000001	16	0	14400.	64.	SCUBA-2	i-daisy	0	BHXB1	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
-file_PB.write('M20AL008	000002	16	0	14400.	64.	SCUBA-2	i-daisy	0	BHXB2	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.write('M20AL008	000002	16	0	14400.	64.	SCUBA-2	i-daisy	0	BHXB2	1.6700284758580772	-0.006032536634045956	0.0	0.12\n')
 file_PB.write('M20AL008	000003	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB3	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
-file_PB.write('M20AL008	000004	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB4	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.write('M20AL008	000004	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB4	1.6700284758580772	-0.006032536634045956	0.0	0.12\n')
 file_PB.write('M20AL008	000005	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB5	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
-file_PB.write('M20AL008	000006	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB6	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
+file_PB.write('M20AL008	000006	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB6	1.6700284758580772	-0.006032536634045956	0.0	0.12\n')
 file_PB.close()
 #############################################################
 
 
 #empty out simulations folder and add current program files
 os.system('rm -rf '+path_dir+'program_details_sim/*.list')
+os.system('rm -rf '+path_dir+'program_details_fix/*.list')
 os.system('rm -rf '+path_dir+'sim_results/schedules/*.txt')
 os.system('rm -rf '+path_dir+'sim_results/schedules/*.png')
 os.system('rm -rf '+path_dir+'sim_results/*.pdf')
 os.system('rm -rf '+path_dir+'sim_results/*.txt')
-os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_details_sim')
+
 
 print('Predicting Large Program observations between '+sim_start+' and '+sim_end+' ...\n')
 
-print('NOTE: M20AL022 and M20AL026 have been manually removed from project list as there are no MSBs present.')
+print('NOTE: M20AL022 and M20AL026 have been manually removed from project list as there are no MSBs present.\n')
 
 #correct MSB files to match allocation
 correct_msbs(LAPprograms,path_dir)
+os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_details_sim')
 #hack for M17BL010 - it was allocated time for RXA, but now will be using UU with time/2.2
 #here we double check if the MSBs still read RXA
 m='M17BL010'
@@ -1274,14 +1303,14 @@ fileo.write("Total Remaining Hrs for Large Programs before Simulation: "+str(rou
 fileo.write("Total Hrs Available for Large Program Observing in Simulation (only LAP queue):"+str(round(np.sum(tot_tally),2))+'\n')
 fileo.write("Total Observed Hrs for Large Programs in Simulation: "+str(round(np.sum(obs_hrs),2))+'\n')
 fileo.write("Total Remaining Hrs for Large Programs after Simulation: "+str(round(np.sum(remaining_new),2))+'\n')
-fileo.write("Total Hrs lost to weather (i.e., nights where nothing observed):"+str(np.sum(nothing_obs))+'\n')
+fileo.write("Total Hrs lost to weather (i.e., nights where nothing observed in LAP queue):"+str(np.sum(nothing_obs))+'\n')
 fileo.close()
 print("Total Allocated Hrs for Large Programs: ",round(np.sum(RH['allocated_hrs']),2))
 print("Total Remaining Hrs for Large Programs before Simulation: ",round(np.sum(RH['remaining_hrs']),2))
 print("Total Hrs Available for Large Program Observing in Simulation (only LAP queue):", round(np.sum(tot_tally),2))
 print("Total Observed Hrs for Large Programs in Simulation: ",round(np.sum(obs_hrs),2))
 print("Total Remaining Hrs for Large Programs after Simulation: ",round(np.sum(remaining_new),2))
-print("Total Hrs lost to weather (i.e., nights where nothing observed):", np.sum(nothing_obs))
+print("Total Hrs lost to weather (i.e., nights where nothing observed in LAP queue):", np.sum(nothing_obs))
 
 
 #write remaining hrs split by weather band, instrument, and program to file
