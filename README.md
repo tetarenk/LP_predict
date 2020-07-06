@@ -27,6 +27,8 @@ Script is compatible with both Python 2 and 3.
 * Start/End dates for simulation.
 * Blocked out dates for each instrument (e.g., for E\&C).
 
+Note: You no longer need to input a JCMT schedule manually (LAP-UT-blocks-real-and-model-blocks.txt), the code now simulates the schedule for you (example_model_obs_blocks.txt).
+
 ### On any machine, you will additionally need: 
 
 * Large program details file and MSB files for each program (through running the sql scripts example-project-summary.sql and  example-project-info.sql on an EAO machine).
@@ -42,7 +44,7 @@ To run the wvm script on an EAO machine, input the date range in the script, the
 
 ## Simulator output:
 
-* Simulator results file: including allocated/observed/remaining hrs for each program, total observed hrs in simulation, total hrs lost to weather in simulation, program finish dates.
+* Simulator results file: including allocated/observed/remaining hrs for each program, total observed hrs in simulation, total hrs lost to weather in simulation, program finish dates, program specific statistics (Transient - record of which months each target was observed, PITCH-BLACK - record of which semesters contained a campaign).
 * File tabulating a breakdown of available, used, and unused hours in each weather band during the simulation.
 * Files tabulating the remaining time in the large program queue after the simulation, split by weather band, instrument, and program.
 * Schedules for each night in the simulation; table files and plots (shown below).
