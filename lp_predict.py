@@ -30,7 +30,7 @@ Details are provided below in the user input and SQL queries sections of the scr
 -If get error about astropy quantities in scheduler to table task, open scheduling.py in astroplan packages and edit line 303
 
 Written by: Alex J. Tetarenko
-Last Updated: July 06, 2020
+Last Updated: Nov 26, 2020
 '''
 
 #packages to import
@@ -693,8 +693,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 		# PI and DDT queues as well.
 		if FP=='LAP':
 			tot_tally.append(obsn)
-		WBand=get_wband(tau_mjd[k])
-		wb_usage_tally['Available'][WBand].append(obsn)
+			WBand=get_wband(tau_mjd[k])
+			wb_usage_tally['Available'][WBand].append(obsn)
 		#make a target list for the night (we keep track of target, MSB time, priority, and program),
 		#looping over each target in each program
 		targets=[]
@@ -898,8 +898,9 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 			unused_ind=np.where(np.logical_or(np.logical_or(sched['target']=='Unused Time',sched['target']=='TransitionBlock'),sched['target']=='FAULT'))[0]
 			unused=np.sum(np.array(sched['duration (minutes)'][unused_ind]))/60.
 			lst_list=get_lst(sched,unused_ind,jcmt)
-			lst_tally[WBand].extend(lst_list)
-			wb_usage_tally['Unused'][WBand].append(unused)
+			if FP=='LAP':
+				wb_usage_tally['Unused'][WBand].append(unused)
+				lst_tally[WBand].extend(lst_list)
 			#uncomment if selecting calibrators specifically
 			#caltime=np.sum(np.array(sched['duration (minutes)'])[[p for p,n in enumerate(np.array(sched['target'])) if n in names]])/60.
 			#wb_usage_tally['Cal'][WBand].append(caltime)
@@ -955,11 +956,12 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 							 
 		else:
 			WBand=get_wband(tau_mjd[k])
-			wb_usage_tally['Unused'][WBand].append(obsn)
-			wb_usage_tally['Used'][WBand].append(0.)
-			wb_usage_tally['Cal'][WBand].append(0.)
-			lst_list=get_time_blocks(obsn,obs_mjd[k],jcmt)
-			lst_tally[WBand].extend(lst_list)
+			if FP=='LAP':
+				wb_usage_tally['Unused'][WBand].append(obsn)
+				wb_usage_tally['Used'][WBand].append(0.)
+				wb_usage_tally['Cal'][WBand].append(0.)
+				lst_list=get_time_blocks(obsn,obs_mjd[k],jcmt)
+				lst_tally[WBand].extend(lst_list)
 			# we will only count the LAP nights in the tally of bad weather nights
 			if FP=='LAP':
 				nothing_obs.append(obsn)
@@ -1042,8 +1044,8 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
-sim_start='2020-07-06'
-sim_end='2021-02-01'
+sim_start='2020-11-23'
+sim_end='2022-07-31'
 
 flag='fetch'
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
@@ -1058,6 +1060,8 @@ wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
 SCUBA_2_unavailable=[]
 HARP_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
 RU_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
+
+retired=['M16AL001','M16AL006','M17BL001','M17BL010','M17BL006','M17BL007','M20AL022']
 #############################################################
 
 #create output directory tree structure
@@ -1086,12 +1090,13 @@ with open(path_dir+'LP_priority.txt','w') as filehandle:
 		filehandle.write('	'.join(map(str,listitem))+'\n')
 #read in LAP details
 LAPprograms_file=path_dir+'LP_priority.txt'
-#get rid of M20AL022 and M20AL026 in the list as no MSBs uploaded
+#get rid of M20AL022 in the list as no MSBs uploaded
 with open(LAPprograms_file,'r+') as f: 
 	lines=f.read() 
 	f.seek(0) 
-	for line in lines.split('\n'): 
-		if 'M20AL022' not in line and 'M20AL026' not in line: 
+	for line in lines.split('\n'):
+		if not any(xp in line for xp in retired):
+		#if 'M20AL022' not in line and 'M20AL026' not in line: 
 			f.write(line + '\n') 
 	f.truncate()
 ####
@@ -1148,27 +1153,26 @@ os.system('rm -rf '+path_dir+'sim_results/*.txt')
 
 print('Predicting Large Program observations between '+sim_start+' and '+sim_end+' ...\n')
 
-print('NOTE: M20AL022 and M20AL026 have been manually removed from project list as there are no MSBs present.\n')
+print('NOTE: Retired programs (and M20AL022; MALATANG) have been manually removed from project list.\n')
 
 #correct MSB files to match allocation
 correct_msbs(LAPprograms,path_dir)
 os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_details_sim')
 #hack for M17BL010 - it was allocated time for RXA, but now will be using UU with time/2.2
-#here we double check if the MSBs still read RXA
-m='M17BL010'
-msbs_10=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
-instruments_10=list(np.unique(msbs_10['instrument']))
-if 'RXA3M' in instruments_10:
-	LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
-	LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
-	RH['remaining_hrs'][RH['projectid']=='M17BL010']=np.round(RH['remaining_hrs'][RH['projectid']=='M17BL010']/2.2,2)
-	RH['allocated_hrs'][RH['projectid']=='M17BL010']=np.round(RH['allocated_hrs'][RH['projectid']=='M17BL010']/2.2,2)
+#here we double check if the MSBs still read RXA - not need anymore this program is retired!
+#m='M17BL010'
+#msbs_10=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
+#instruments_10=list(np.unique(msbs_10['instrument']))
+#if 'RXA3M' in instruments_10:
+	#LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
+	#LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
+	#RH['remaining_hrs'][RH['projectid']=='M17BL010']=np.round(RH['remaining_hrs'][RH['projectid']=='M17BL010']/2.2,2)
+	#RH['allocated_hrs'][RH['projectid']=='M17BL010']=np.round(RH['allocated_hrs'][RH['projectid']=='M17BL010']/2.2,2)
 
 
 #calculate observing blocks within the selected simulation dates
 create_blocks(sim_start,sim_end)
 OurBlocks=ascii.read(path_dir+'model_obs_blocks.txt')
-
 
 #run observation simulator for each observing block
 total_observed = {k:v for k,v in zip(program_list,np.zeros(len(program_list)))}
@@ -1267,7 +1271,7 @@ colordict={'PI': 'y','LAP': 'm','UH': 'g','DDT': 'b',}
 #colordict['M16AL004']='gray'
 for jj in range(0,len(program_list)):
 	#colordict[program_list[jj]]=colors[jj]
-	ax.plot(dats[jj],np.array(pers[jj])*100.,color=colors[jj],ls='-',marker='o',label=program_list[jj])
+	ax.plot(dats[jj],np.array(pers[jj])*100.,color=colors[jj],ls='-',marker='o',ms=3,label=program_list[jj])
 for j in range(0,len(blockst)):
 	ax.axvspan(blockst[j], blockend[j], facecolor=colordict[blockprog[j]], alpha=0.3)
 sim_dys=abs((datetime.datetime.strptime(sim_end,'%Y-%m-%d')-datetime.datetime.strptime(sim_start,'%Y-%m-%d')).days)
@@ -1285,7 +1289,7 @@ ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m-%Y"))
 plt.setp(ax.get_xticklabels(), rotation=45, horizontalalignment='right') 
 ax.set_title('Completion as of '+str(blockend[-1]).split(' ')[0])
 ax.set_ylim(0,100)
-ax.legend(loc='upper right',bbox_to_anchor=(1.35,1.1),fontsize=10)
+ax.legend(loc='upper right',bbox_to_anchor=(1.35,1.0),fontsize=10)
 ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
 ax.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
 ax.tick_params(axis='y',which='major', labelsize=9,length=5,width=1.5,right='on',left='on')
