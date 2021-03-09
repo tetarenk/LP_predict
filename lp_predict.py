@@ -30,7 +30,7 @@ Details are provided below in the user input and SQL queries sections of the scr
 -If get error about astropy quantities in scheduler to table task, open scheduling.py in astroplan packages and edit line 303
 
 Written by: Alex J. Tetarenko
-Last Updated: Nov 26, 2020
+Last Updated: Mar 8, 2021
 '''
 
 #packages to import
@@ -250,11 +250,12 @@ def correct_msbs(LAPprograms,path_dir):
 			msb_remaining=np.sum(msbs['msb_total_hrs'])
 			diff= remaining - msb_remaining #negative is too much, + is too little
 			print('Correcting MSBs file for: ',m,' --> Time difference =', round(diff,2))
-			if diff != 0.:
+			if abs(diff) >1:
 				coords=SkyCoord(ra=msbs['ra2000']*u.rad,dec=msbs['dec2000']*u.rad,frame='icrs')
+				#print(coords)
 				sep=coords[0].separation(coords)
 				repeats=int(remaining/(msbs['timeest'][0]/3600.))
-				if np.all(sep<1.*u.degree):
+				if np.all(sep<0.1*u.degree):
 					ascii.write([[msbs['projectid'][0]],[msbs['msbid'][0]],[repeats],[msbs['obscount'][0]],\
 					[msbs['timeest'][0]],[(msbs['timeest'][0]*repeats)/3600.],[msbs['instrument'][0]],\
 					[msbs['type'][0]],[msbs['pol'][0]],[msbs['target'][0]],[msbs['ra2000'][0]],[msbs['dec2000'][0]],\
@@ -302,7 +303,11 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 			for dx in ind:
 				if msbs['instrument'][dx] == 'RXA3M':
 					msbs['timeest'][dx]=msbs['timeest'][dx]/2.2
-			remainwb_tally[m.upper()][wb]=remainwb_tally[m.upper()][wb]+round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
+			rems=remainwb_tally[m.upper()][wb]+round(np.sum(msbs['remaining'][ind]*msbs['timeest'][ind]/3600.),2)
+			if rems <0.:#for when we over observe by a few minutes
+				remainwb_tally[m.upper()][wb]=0.0
+			else:
+				remainwb_tally[m.upper()][wb]=rems
 		fileo.write('{0} {1}\n'.format(m+':',remainwb_tally[m.upper()]))
 		for bandkey in list(remainwb_tally[m.upper()].keys()):
 			tot[bandkey]=tot[bandkey]+remainwb_tally[m.upper()][bandkey]
@@ -312,7 +317,11 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 			if instruments[val] == 'RXA3M':
 				inst['UU']=inst['UU']+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
 			else:
-				inst[instruments[val]]=inst[instruments[val]]+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
+				remsi=inst[instruments[val]]+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
+				if remsi <0:#for when we over observe by a few minutes
+					inst[instruments[val]]=0.0
+				else:
+					inst[instruments[val]]=remsi
 	fileo.close()
 	fileo=open(path_dir+'sim_results/results_split.txt','w')
 	fileo.write('Per Weather Band:\n')
@@ -565,6 +574,8 @@ def bad_block(instrument,SCUBA_2_unavailable,HARP_unavailable,UU_unavailable):
 		checklst=HARP_unavailable
 	elif instrument in ['UU','RXA3M']:
 		checklst=RU_unavailable
+	elif instrument=='malatang':
+		checklst=np.arange(59264,59458)
 	else:
 		raise ValueError('Instrument unavailable.')
 	return checklst
@@ -714,7 +725,10 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 				#(b) The night is not in the blackout dates for the instrument
 				#(c) The weather is appropriate
 				for j in range(0,len(target_table['target'])):
-					blackout_dates=bad_block(obs_time_table['instrument'][j],SCUBA_2_unavailable,HARP_unavailable,RU_unavailable)
+					if m.lower()=='m20al022':
+						blackout_dates=bad_block('malatang',SCUBA_2_unavailable,HARP_unavailable,RU_unavailable)
+					else:
+						blackout_dates=bad_block(obs_time_table['instrument'][j],SCUBA_2_unavailable,HARP_unavailable,RU_unavailable)
 					if (obs_time_table['remaining'][j] >0 and obs_time_table['taumax'][j] >= tau_mjd[k] and obs_mjd[k] not in blackout_dates):
 						#The m16al001/m20AL007 program is to run on a monthly basis, so if we are dealing with that
 						#program we must check whether each target has been observed in the current month yet.
@@ -1044,8 +1058,8 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 start=time.time()
 path_dir='/export/data2/atetarenko/LP_predict/'
 
-sim_start='2020-11-23'
-sim_end='2022-07-31'
+sim_start='2021-02-28'
+sim_end='2026-01-31'
 
 flag='fetch'
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
@@ -1061,9 +1075,10 @@ SCUBA_2_unavailable=[]
 HARP_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
 RU_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
 
-retired=['M16AL001','M16AL006','M17BL001','M17BL010','M17BL006','M17BL007','M20AL022']
+retired=['M16AL001','M16AL002','M16AL003','M16AL004','M16AL005','M16AL006','M16AL007','M17BL001','M17BL010','M17BL006','M17BL007','M17BL011']
+#malatang 'M20AL022'=='M16AL007'
 #############################################################
-
+rsync -avze 'ssh -i tetarenk-cirrcloud2.pem' ubuntu@142.244.87.174:/mnt/bigdata/tetarenk/VLA_glimpse /media/disk/atetarenko
 #create output directory tree structure
 if not os.path.isdir(os.path.join(path_dir, 'program_details_org/')):
     os.mkdir(os.path.join(path_dir, "program_details_org"))
@@ -1084,10 +1099,12 @@ db=ArcDB()
 querystring1='SELECT p.projectid, p.semester, q.tagpriority, (p.remaining/60/60) as remaining_hrs, (p.allocated/60/60) as allocated_hrs,  p.taumin, p.taumax FROM omp.ompproj  as p JOIN omp.ompprojqueue as q ON p.projectid=q.projectid WHERE semester="LAP" AND  remaining >0 ORDER BY q.tagpriority;'
 results_LAP_proj=db.read(querystring1)
 res1=list(results_LAP_proj)
+os.system('rm -rf '+path_dir+'LP_priority.txt')
 with open(path_dir+'LP_priority.txt','w') as filehandle:
 	filehandle.write('projectid\tsemester\ttagpriority\tremaining_hrs\tallocated_hrs\ttaumin\ttaumax\n')
 	for listitem in res1:
 		filehandle.write('	'.join(map(str,listitem))+'\n')
+
 #read in LAP details
 LAPprograms_file=path_dir+'LP_priority.txt'
 #get rid of M20AL022 in the list as no MSBs uploaded
@@ -1097,7 +1114,7 @@ with open(LAPprograms_file,'r+') as f:
 	for line in lines.split('\n'):
 		if not any(xp in line for xp in retired):
 		#if 'M20AL022' not in line and 'M20AL026' not in line: 
-			f.write(line + '\n') 
+			f.write(line + '\n')
 	f.truncate()
 ####
 LAPprograms=ascii.read(LAPprograms_file)
@@ -1139,6 +1156,14 @@ file_PB.write('M20AL008	000004	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB4	1.67002847
 file_PB.write('M20AL008	000005	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB5	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
 file_PB.write('M20AL008	000006	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB6	1.6700284758580772	-0.006032536634045956	0.0	0.12\n')
 file_PB.close()
+#dummy MSBs for MALATANG based on old M16AL007 MSBs
+mold='M16AL007'
+mnew='M20AL022'
+malatang_old=path_dir+'program_details_org/'+mold.lower()+'-project-info.list'
+malatang_new=path_dir+'program_details_org/'+mnew.lower()+'-project-info.list'
+os.system('cp -r '+malatang_old+' '+malatang_new)
+#fix m20al026
+os.system('cp -r '+path_dir+'program_details_org/m20al026-project-info_fix.list '+path_dir+'program_details_org/m20al026-project-info.list')
 #############################################################
 
 
@@ -1153,11 +1178,12 @@ os.system('rm -rf '+path_dir+'sim_results/*.txt')
 
 print('Predicting Large Program observations between '+sim_start+' and '+sim_end+' ...\n')
 
-print('NOTE: Retired programs (and M20AL022; MALATANG) have been manually removed from project list.\n')
+print('NOTE: Retired programs (and M20AL022; MALATANG until August 2021) have been manually removed from project list.\n')
 
 #correct MSB files to match allocation
 correct_msbs(LAPprograms,path_dir)
 os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_details_sim')
+
 #hack for M17BL010 - it was allocated time for RXA, but now will be using UU with time/2.2
 #here we double check if the MSBs still read RXA - not need anymore this program is retired!
 #m='M17BL010'
