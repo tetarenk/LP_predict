@@ -1078,7 +1078,6 @@ RU_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
 retired=['M16AL001','M16AL002','M16AL003','M16AL004','M16AL005','M16AL006','M16AL007','M17BL001','M17BL010','M17BL006','M17BL007','M17BL011']
 #malatang 'M20AL022'=='M16AL007'
 #############################################################
-rsync -avze 'ssh -i tetarenk-cirrcloud2.pem' ubuntu@142.244.87.174:/mnt/bigdata/tetarenk/VLA_glimpse /media/disk/atetarenko
 #create output directory tree structure
 if not os.path.isdir(os.path.join(path_dir, 'program_details_org/')):
     os.mkdir(os.path.join(path_dir, "program_details_org"))
