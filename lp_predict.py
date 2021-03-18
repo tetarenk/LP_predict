@@ -45,6 +45,7 @@ from matplotlib import rc
 from matplotlib.ticker import AutoMinorLocator
 import matplotlib.cm as cm
 import matplotlib.dates as mdates
+from matplotlib.dates import MONDAY
 import datetime as datetime
 import astropy
 from astropy import units as u
