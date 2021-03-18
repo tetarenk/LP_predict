@@ -1300,17 +1300,19 @@ for jj in range(0,len(program_list)):
 for j in range(0,len(blockst)):
 	ax.axvspan(blockst[j], blockend[j], facecolor=colordict[blockprog[j]], alpha=0.3)
 sim_dys=abs((datetime.datetime.strptime(sim_end,'%Y-%m-%d')-datetime.datetime.strptime(sim_start,'%Y-%m-%d')).days)
-l1=int((((sim_dys/20.)+3/2)/3)*3)
-l2=int(int((((sim_dys/20.)+3/2)/3)*3)/3)
-if l1 < 1. or l2 <1.:
-	locator1a = mdates.DayLocator(interval=2)
+l1=int(round(sim_dys/30.))
+if l1 < 5.:
+	locator1a = mdates.WeekdayLocator(MONDAY)
 	locator1 = mdates.DayLocator(interval=1)
+elif l1>=5 and l1<=10:
+	locator1a = mdates.MonthLocator(range(1, 13), bymonthday=1, interval=1)
+	#locator1 = mdates.WeekdayLocator(MONDAY)
 else:
-	locator1a = mdates.DayLocator(interval=l1)
-	locator1 = mdates.DayLocator(interval=l2)
+	locator1a = mdates.MonthLocator(range(1, 13), bymonthday=1, interval=round(l1/10.))
+	#locator1 = mdates.WeekdayLocator(MONDAY)
 ax.xaxis.set_major_locator(locator1a)
-ax.xaxis.set_minor_locator(locator1)
-ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m-%Y"))
+#ax.xaxis.set_minor_locator(locator1)
+ax.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
 plt.setp(ax.get_xticklabels(), rotation=45, horizontalalignment='right') 
 ax.set_title('Completion as of '+str(blockend[-1]).split(' ')[0])
 ax.set_ylim(0,100)
