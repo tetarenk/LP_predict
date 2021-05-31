@@ -32,6 +32,8 @@ harp_un     HARP unavailable MJDs -- str 'MJD1,MJD2'
 rua_un      UU/AWEOWEO unavailable MJDs -- str 'MJD1,MJD2'
 dir         data directory (i.e., where script is stored) -- str '/path/to/dir/'
 
+Place this script and getwvm.py in dir before running.
+
 If you want to run this script on any machine you need to generate the following on an EAO machine first:
 (a) wvm file through the python script provided (getwvm.py).
 (b) LAP projects file and MSB files through the sql scripts provided (example-project-summary.sql and example-project-info.sql)
