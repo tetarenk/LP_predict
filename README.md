@@ -26,17 +26,17 @@ Script is compatible with both Python 2 and 3.
 
 Usage: `lp_predict.py [-h] simstart simend scuba2_un harp_un rua_un dir`
 
-simstart    start of simulation -- str 'yyyy-mm-dd'
+*simstart*: start of simulation -- str 'yyyy-mm-dd'
 
-simend      end of simulation -- str 'yyyy-mm-dd'
+*simend*: end of simulation -- str 'yyyy-mm-dd'
 
-scuba2_un   SCUBA-2 unavailable MJDs for E\&C -- str 'MJD1,MJD2'; if none enter ''
+*scuba2_un*: SCUBA-2 unavailable MJDs for E\&C -- str `'MJD1,MJD2'`; if none enter `''`
 
-harp_un     HARP unavailable MJDs for E\&C -- str 'MJD1,MJD2'; if none enter ''
+*harp_un*: HARP unavailable MJDs for E\&C -- str `'MJD1,MJD2'`; if none enter `''`
 
-rua_un      UU/AWEOWEO unavailable MJDs for E\&C -- str 'MJD1,MJD2'; if none enter ''
+*rua_un*: UU/AWEOWEO unavailable MJDs for E\&C -- str `'MJD1,MJD2'`; if none enter `''`
 
-dir         data directory (i.e., where script is stored) -- str '/path/to/dir/'
+*dir*: data directory (i.e., where script is stored) -- str `'/path/to/dir/'`
 
 Note: You no longer need to input a JCMT schedule manually (LAP-UT-blocks-real-and-model-blocks.txt), the code now simulates the schedule for you (example_model_obs_blocks.txt).
 
