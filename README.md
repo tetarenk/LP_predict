@@ -22,7 +22,7 @@ Script is compatible with both Python 2 and 3.
 
 ## To run the simulator script you need:
 
-### On an EAO computer: 
+### On an EAO/JCMT computer: 
 
 Usage: `lp_predict.py [-h] simstart simend scuba2_un harp_un rua_un dir`
 
@@ -40,7 +40,7 @@ Usage: `lp_predict.py [-h] simstart simend scuba2_un harp_un rua_un dir`
 
 Note: You no longer need to input a JCMT schedule manually (LAP-UT-blocks-real-and-model-blocks.txt), the code now simulates the schedule for you (example_model_obs_blocks.txt).
 
-### On any machine, you will additionally need: 
+### On any machine, you will additionally need to generate: 
 
 * Large program details file (1) and MSB files for each program (2; through running the sql scripts example-project-summary.sql and  example-project-info.sql on an EAO machine).
 * WVM data file (through running the partner python script, getwvm.py, on an EAO machine).
