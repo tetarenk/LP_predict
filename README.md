@@ -38,7 +38,7 @@ Usage: `lp_predict.py [-h] simstart simend scuba2_un harp_un rua_un dir`
 
 * *dir*: data directory (i.e., where script is stored) -- `'/path/to/dir/'`
 
-Note: You no longer need to input a JCMT schedule manually (LAP-UT-blocks-real-and-model-blocks.txt), the code now simulates the schedule for you (example_model_obs_blocks.txt).
+Note: Place `lp_predict.py` and `getwvm.py` in *dir* before running above. You no longer need to input a JCMT schedule manually (LAP-UT-blocks-real-and-model-blocks.txt), the code now simulates the schedule for you (example_model_obs_blocks.txt). 
 
 ### On any machine, you will additionally need to generate: 
 
