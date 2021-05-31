@@ -18,19 +18,30 @@ OUTPUT: (1) File summary of simulation results detailing the predicted number of
         (7) Incremental program completion chart
         (8) Bar plot of totals (remaining hrs in each weather band) per program
         (9) Bar plot of total remaining hrs split by weather band and instrument
-        (10) Program specific statistics; Transient (record of which months each target was observed), PITCH-BLACK (record of which semesters contained a campaign)
+        (10) Program specific statistics; Transient (record of which months each target was observed),
+             PITCH-BLACK (record of which semesters contained a campaign)
 
-NOTES: - This script is meant to be run on an EAO computer. If you want to run this script on any machine you need to generate the
-following on an EAO machine first:
+NOTES: - This script is meant to be run on an EAO computer as follows, 
+
+Usage: lp_predict.py [-h] simstart simend scuba2_un harp_un rua_un dir
+
+simstart    start of simulation -- str 'yyyy-mm-dd'
+simend      end of simulation -- str 'yyyy-mm-dd'
+scuba2_un   SCUBA-2 unavailable MJDs -- str 'MJD1,MJD2'
+harp_un     HARP unavailable MJDs -- str 'MJD1,MJD2'
+rua_un      UU/AWEOWEO unavailable MJDs -- str 'MJD1,MJD2'
+dir         data directory (i.e., where script is stored) -- str '/path/to/dir/'
+
+If you want to run this script on any machine you need to generate the following on an EAO machine first:
 (a) wvm file through the python script provided (getwvm.py).
 (b) LAP projects file and MSB files through the sql scripts provided (example-project-summary.sql and example-project-info.sql)
-Details are provided below in the user input and SQL queries sections of the script.
-- Uses the following python packages: astropy, astroplan, matplotlib, numpy, datetime, pandas, mysql-connector-python.
--Works in both Python 2 and 3.
--If get error about astropy quantities in scheduler to table task, open scheduling.py in astroplan packages and edit line 303
+Details are provided below in the 'other options' and 'SQL queries' sections of the script.
+
+- Works in both Python 2 and 3.
+- If you get an error about "astropy quantities in scheduler to table task", open scheduling.py in astroplan package and edit line 303.
 
 Written by: Alex J. Tetarenko
-Last Updated: Mar 8, 2021
+Last Updated: May 30, 2021
 '''
 
 #packages to import
@@ -55,6 +66,7 @@ from astropy.table import Table
 from astropy.time import Time,TimeDelta
 import warnings
 warnings.filterwarnings('ignore')
+import argparse
 import astroplan
 from astroplan import Observer, FixedTarget, AltitudeConstraint, is_observable, ObservingBlock, observability_table
 from astroplan.constraints import TimeConstraint,AltitudeConstraint,SunSeparationConstraint
@@ -290,7 +302,7 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 		for j in list(remainwb_tally.keys()):
 			remainwb_tally[j][i]=0
 	tot={k:0 for k in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']}
-	inst={k:0 for k in ['SCUBA-2', 'HARP','UU']}
+	inst={k:0 for k in ['SCUBA-2', 'HARP','UU','AWEOWEO']}
 	fileo=open(path_dir+'sim_results/results_wb.txt','w')
 	fileo.write('Per Program:\n')
 	for m in program_list:
@@ -330,7 +342,7 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 		fileo.write('{0} {1}\n'.format(band+':',np.round(tot[band],2)))
 	fileo.write('\n')
 	fileo.write('Per Instrument:\n')
-	for ins in ['SCUBA-2', 'HARP','UU']:
+	for ins in ['SCUBA-2', 'HARP','UU','AWEOWEO']:
 		fileo.write('{0} {1}\n'.format(ins+':',np.round(inst[ins],2)))
 	fileo.close()
 	return(tot,inst,remainwb_tally)
@@ -567,16 +579,14 @@ def good_blocks(Blocks,mjd_predict,tau_predict):
 	tau_mjd=tau_predict[[i for i, item in enumerate(mjd_predict) if item in dates]]
 	return(obs_mjd,tau_mjd)
 
-def bad_block(instrument,SCUBA_2_unavailable,HARP_unavailable,UU_unavailable):
+def bad_block(instrument,SCUBA_2_unavailable,HARP_unavailable,RUA_unavailable):
 	'''Returns the proper list of unavailable dates based on instrument.'''
 	if instrument=='SCUBA-2':
 		checklst=SCUBA_2_unavailable
 	elif instrument=='HARP':
 		checklst=HARP_unavailable
-	elif instrument in ['UU','RXA3M']:
-		checklst=RU_unavailable
-	elif instrument=='malatang':
-		checklst=np.arange(59264,59458)
+	elif instrument in ['UU','RXA3M','AWEOWEO']:
+		checklst=RUA_unavailable
 	else:
 		raise ValueError('Instrument unavailable.')
 	return checklst
@@ -670,7 +680,7 @@ def check_semester(mjd):
 	return(sem)
 
 def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total_observed,FP,m16al001_tally,m20al008_tally,\
-	SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status):
+	SCUBA_2_unavailable,HARP_unavailable,RUA_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status):
 	'''Simulates observations of Large Programs over specified observing block.'''
 
 	#fetch wvm data from previous year(s)
@@ -726,10 +736,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 				#(b) The night is not in the blackout dates for the instrument
 				#(c) The weather is appropriate
 				for j in range(0,len(target_table['target'])):
-					if m.lower()=='m20al022':
-						blackout_dates=bad_block('malatang',SCUBA_2_unavailable,HARP_unavailable,RU_unavailable)
-					else:
-						blackout_dates=bad_block(obs_time_table['instrument'][j],SCUBA_2_unavailable,HARP_unavailable,RU_unavailable)
+					blackout_dates=bad_block(obs_time_table['instrument'][j],SCUBA_2_unavailable,HARP_unavailable,RUA_unavailable)
 					if (obs_time_table['remaining'][j] >0 and obs_time_table['taumax'][j] >= tau_mjd[k] and obs_mjd[k] not in blackout_dates):
 						#The m16al001/m20AL007 program is to run on a monthly basis, so if we are dealing with that
 						#program we must check whether each target has been observed in the current month yet.
@@ -1054,13 +1061,8 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 
 
 #############################################################
-#User Input
+#Other options 
 #############################################################
-start=time.time()
-path_dir='/export/data2/atetarenko/LP_predict/'
-
-sim_start='2021-02-28'
-sim_end='2026-01-31'
 
 flag='fetch'
 wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
@@ -1070,16 +1072,40 @@ wvmfile=''#path_dir+'wvmvalues_onepernight.csv'
 #AND place output file in path_dir
 #THEN (a) enter file name in wvmfile variable above, (b) change fetch to file
 
+#retired programs
+retired=['M16AL001','M16AL002','M16AL003','M16AL004','M16AL005','M16AL006','M16AL007',
+'M17BL001','M17BL010','M17BL006','M17BL007','M17BL011']
+#############################################################
+
+#command line input
+parser = argparse.ArgumentParser()
+parser.add_argument("simstart", help="start of simulation yyyy-mm-dd",type=str)
+parser.add_argument("simend", help="end of simulation yyyy-mm-dd",type=str)
+parser.add_argument("scuba2_un", help="SCUBA-2 unavailable MJDs start,end",type=str)
+parser.add_argument("harp_un", help="HARP unavailable MJDs start,end",type=str)
+parser.add_argument("rua_un", help="UU/AWEOWEO unavailable MJDs start,end",type=str)
+parser.add_argument("dir", help="data directory - str",type=str)
+args = parser.parse_args()
+
+#data directory
+path_dir=args.dir#'/export/data2/atetarenko/LP_predict/'
+
+#sim start and end dates
+sim_start=args.simstart
+sim_end=args.simend
 
 #dates the instruments are unavailable in MJD
-SCUBA_2_unavailable=[]
-HARP_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
-RU_unavailable=np.arange(58750,58848)#Sep24-Dec31,2019
+def map_unavail(strings):
+	if strings!='':
+		return np.arange(int(strings.split(",")[0]),int(strings.split(",")[1]))
+	else:
+		return []
+SCUBA_2_unavailable=map_unavail(args.scuba2_un)
+HARP_unavailable=map_unavail(args.harp_un)
+RUA_unavailable=map_unavail(args.rua_un)#UU and AWEOWEO
 
-retired=['M16AL001','M16AL002','M16AL003','M16AL004','M16AL005','M16AL006','M16AL007','M17BL001','M17BL010','M17BL006','M17BL007','M17BL011']
-#malatang 'M20AL022'=='M16AL007'
-#############################################################
-#create output directory tree structure
+#create output directory tree structure - 
+#org (sql query files), fix (after matching up allocation and total time in msbs), sim (simualtion msbs that are modified by code)
 if not os.path.isdir(os.path.join(path_dir, 'program_details_org/')):
     os.mkdir(os.path.join(path_dir, "program_details_org"))
 if not os.path.isdir(os.path.join(path_dir, 'program_details_fix/')):
@@ -1107,13 +1133,11 @@ with open(path_dir+'LP_priority.txt','w') as filehandle:
 
 #read in LAP details
 LAPprograms_file=path_dir+'LP_priority.txt'
-#get rid of M20AL022 in the list as no MSBs uploaded
 with open(LAPprograms_file,'r+') as f: 
 	lines=f.read() 
 	f.seek(0) 
 	for line in lines.split('\n'):
-		if not any(xp in line for xp in retired):
-		#if 'M20AL022' not in line and 'M20AL026' not in line: 
+		if not any(xp in line for xp in retired): 
 			f.write(line + '\n')
 	f.truncate()
 ####
@@ -1156,14 +1180,6 @@ file_PB.write('M20AL008	000004	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB4	1.67002847
 file_PB.write('M20AL008	000005	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB5	5.3409853093419235	0.5910940514686873	0.0	0.12\n')
 file_PB.write('M20AL008	000006	8	0	14400.	32.	SCUBA-2	i-daisy	0	BHXB6	1.6700284758580772	-0.006032536634045956	0.0	0.12\n')
 file_PB.close()
-#dummy MSBs for MALATANG based on old M16AL007 MSBs
-mold='M16AL007'
-mnew='M20AL022'
-malatang_old=path_dir+'program_details_org/'+mold.lower()+'-project-info.list'
-malatang_new=path_dir+'program_details_org/'+mnew.lower()+'-project-info.list'
-os.system('cp -r '+malatang_old+' '+malatang_new)
-#fix m20al026
-os.system('cp -r '+path_dir+'program_details_org/m20al026-project-info_fix.list '+path_dir+'program_details_org/m20al026-project-info.list')
 #############################################################
 
 
@@ -1178,23 +1194,11 @@ os.system('rm -rf '+path_dir+'sim_results/*.txt')
 
 print('Predicting Large Program observations between '+sim_start+' and '+sim_end+' ...\n')
 
-print('NOTE: Retired programs (and M20AL022; MALATANG until August 2021) have been manually removed from project list.\n')
+print('NOTE: Retired programs have been manually removed from project list.\n')
 
 #correct MSB files to match allocation
 correct_msbs(LAPprograms,path_dir)
 os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_details_sim')
-
-#hack for M17BL010 - it was allocated time for RXA, but now will be using UU with time/2.2
-#here we double check if the MSBs still read RXA - not need anymore this program is retired!
-#m='M17BL010'
-#msbs_10=ascii.read(path_dir+'program_details_sim/'+m.lower()+'-project-info.list')
-#instruments_10=list(np.unique(msbs_10['instrument']))
-#if 'RXA3M' in instruments_10:
-	#LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['remaining_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
-	#LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']=np.round(LAPprograms['allocated_hrs'][LAPprograms['projectid']=='M17BL010']/2.2,2)
-	#RH['remaining_hrs'][RH['projectid']=='M17BL010']=np.round(RH['remaining_hrs'][RH['projectid']=='M17BL010']/2.2,2)
-	#RH['allocated_hrs'][RH['projectid']=='M17BL010']=np.round(RH['allocated_hrs'][RH['projectid']=='M17BL010']/2.2,2)
-
 
 #calculate observing blocks within the selected simulation dates
 create_blocks(sim_start,sim_end)
@@ -1229,7 +1233,7 @@ for jj in range(0,len(OurBlocks)):
 		break
 	else:
 		FP=OurBlocks['program'][jj]
-		total_observed,m16al001_tally,m20al008_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,m20al008_tally,SCUBA_2_unavailable,HARP_unavailable,RU_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status)
+		total_observed,m16al001_tally,m20al008_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,m20al008_tally,SCUBA_2_unavailable,HARP_unavailable,RUA_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status)
 		dats,pers=incremental_comprate(program_list,dats,pers,OurBlocks[jj],total_observed,RH)
 		st=str(OurBlocks[jj]['date_start'])
 		en=str(OurBlocks[jj]['date_end'])
@@ -1511,7 +1515,3 @@ plt.savefig(path_dir+'sim_results/unused_bar.pdf',bbox_inches='tight')
 #make a plot of LST of remaining MSBs
 jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
 writeLSTremain(jcmt,program_list,sim_end)
-
-
-end=time.time()
-print('Code took: ', (end-start), ' to run')
