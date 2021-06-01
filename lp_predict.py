@@ -27,9 +27,9 @@ Usage: lp_predict.py [-h] simstart simend scuba2_un harp_un rua_un dir
 
 simstart    start of simulation -- str 'yyyy-mm-dd'
 simend      end of simulation -- str 'yyyy-mm-dd'
-scuba2_un   SCUBA-2 unavailable MJDs -- str 'MJD1,MJD2'
-harp_un     HARP unavailable MJDs -- str 'MJD1,MJD2'
-rua_un      UU/AWEOWEO unavailable MJDs -- str 'MJD1,MJD2'
+scuba2_un   SCUBA-2 range of unavailable MJDs -- str 'MJD1,MJD2'
+harp_un     HARP range of unavailable MJDs -- str 'MJD1,MJD2'
+rua_un      UU/AWEOWEO range of unavailable MJDs -- str 'MJD1,MJD2'
 dir         data directory (i.e., where script is stored) -- str '/path/to/dir/'
 
 Place this script and getwvm.py in dir before running.
@@ -157,7 +157,7 @@ class JCMTScheduler(Scheduler):
             b.observer = self.observer
         current_time = self.schedule.start_time
         while (len(blocks) > 0) and (current_time < self.schedule.end_time):
-            print(current_time)# first compute the value of all the constraints for each block
+            # first compute the value of all the constraints for each block
             # given the current starting time
             block_transitions = []
             block_constraint_results = []
@@ -694,10 +694,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 	#set up observatory site and general elevation constraints
 	jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
 
-	print('block:',obs_mjd)
 	#loop over all days in the current observing block
 	for k in range(0,len(obs_mjd)):
-		print('day:',obs_mjd[k])
 		pb_targets=[]
 		#A standard observing night will run from 5:30pm HST to 6:30am HST (13 hrs; times below are UTC!)
 		#if tau is at band 3 or better, EO is scheduled, and we observe till 10:30am HST (17 hrs)
@@ -1114,7 +1112,8 @@ if not os.path.isdir(os.path.join(path_dir, 'program_details_fix/')):
     os.mkdir(os.path.join(path_dir, "program_details_fix"))
 if not os.path.isdir(os.path.join(path_dir, 'program_details_sim/')):
     os.mkdir(os.path.join(path_dir, "program_details_sim"))
-if not os.path.isdir(os.path.join(path_dir, 'sim_results/schedules/')):
+if not os.path.isdir(os.path.join(path_dir, 'sim_results/')):
+	os.mkdir(os.path.join(path_dir, "sim_results"))
     os.mkdir(os.path.join(path_dir, "sim_results/schedules"))
 
 #############################################################

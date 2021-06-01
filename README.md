@@ -30,11 +30,11 @@ Usage: `lp_predict.py [-h] simstart simend scuba2_un harp_un rua_un dir`
 
 * *simend*: end of simulation -- `'yyyy-mm-dd'`
 
-* *scuba2_un*: SCUBA-2 unavailable MJDs for E\&C -- `'MJD1,MJD2'`; if none enter `''`
+* *scuba2_un*: SCUBA-2 range of unavailable MJDs for E\&C -- `'MJD1,MJD2'`; if none enter `''`
 
-* *harp_un*: HARP unavailable MJDs for E\&C -- `'MJD1,MJD2'`; if none enter `''`
+* *harp_un*: HARP range of unavailable MJDs for E\&C -- `'MJD1,MJD2'`; if none enter `''`
 
-* *rua_un*: UU/AWEOWEO unavailable MJDs for E\&C -- `'MJD1,MJD2'`; if none enter `''`
+* *rua_un*: UU/AWEOWEO range of unavailable MJDs for E\&C -- `'MJD1,MJD2'`; if none enter `''`
 
 * *dir*: data directory (i.e., where script is stored) -- `'/path/to/dir/'`
 
