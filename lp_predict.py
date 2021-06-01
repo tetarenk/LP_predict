@@ -40,7 +40,9 @@ If you want to run this script on any machine you need to generate the following
 Details are provided below in the 'other options' and 'SQL queries' sections of the script.
 
 - Works in both Python 2 and 3.
-- If you get an error about "astropy quantities in scheduler to table task", open scheduling.py in astroplan package and edit line 303.
+- If you get an error about "astropy quantities in scheduler to table task", find scheduling.py in the astroplan package directory,
+navigate to the `to_table` function in the `Schedule` class and edit line 303;
+i.e.,change u.Quantity(ra) and u.Quantity(dec) to ra and dec in the return statement.
 
 Written by: Alex J. Tetarenko
 Last Updated: May 30, 2021
