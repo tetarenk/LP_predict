@@ -334,8 +334,13 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 			if instruments[val] == 'RXA3M':
 				inst['UU']=inst['UU']+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
 			else:
-				remsi=inst[instruments[val]]+round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
-				if remsi <0:#for when we over observe by a few minutes
+				adds=round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
+				#for when we over observe by a few minutes
+				if adds >0.:
+					remsi=inst[instruments[val]]+adds
+				else:
+					remsi=inst[instruments[val]]
+				if remsi <0:
 					inst[instruments[val]]=0.0
 				else:
 					inst[instruments[val]]=remsi
