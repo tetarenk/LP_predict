@@ -295,6 +295,19 @@ def correct_msbs(LAPprograms,path_dir):
 					msbs['type'],msbs['pol'],msbs['target'],msbs['ra2000'],msbs['dec2000'],\
 					msbs['taumin'],msbs['taumax']],\
 					path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)
+			#fix case where same name is given to different objects
+			values,cts=np.unique(msbs['target'],return_counts=True)
+			if np.any(cts>1):
+				fulltarlist=msbs['target'].tolist()
+				newtarlist=[]
+				for i,v in enumerate(fulltarlist):
+					totalcount=fulltarlist.count(v)
+					count=fulltarlist[:i].count(v)
+					newtarlist.append(v + 'n'+str(count +1) if totalcount >1 else v)
+				ascii.write([msbs['projectid'],msbs['msbid'],remain,msbs['obscount'],\
+					msbs['timeest'],(msbs['timeest']*remain)/3600.,msbs['instrument'],\
+					msbs['type'],msbs['pol'],newtarlist,msbs['ra2000'],msbs['dec2000'],\
+					msbs['taumin'],msbs['taumax']],path_dir+'program_details_fix/'+m.lower()+'-project-info.list', names=msbs.colnames)
 	print('\n')
 
 def time_remain_p_weatherband(LAPprograms,path_dir):
