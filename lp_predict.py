@@ -15,7 +15,7 @@ OUTPUT: (1) File summary of simulation results detailing the predicted number of
         (4b) Histograms displaying remaining MSB RA range per weather band
         (5) Bar plot of totals (observed/remaining hrs) per program
         (6) Bar plot of totals (used/unused/cals hrs) per weather band
-        (7) Incremental program completion chart
+        (7) Incremental program completion chart (also available in tabular form)
         (8) Bar plot of totals (remaining hrs in each weather band) per program
         (9) Bar plot of total remaining hrs split by weather band and instrument
         (10) Program specific statistics; Transient (record of which months each target was observed),
@@ -45,7 +45,7 @@ navigate to the `to_table` function in the `Schedule` class and edit line 303;
 i.e.,change u.Quantity(ra) and u.Quantity(dec) to ra and dec in the return statement.
 
 Written by: Alex J. Tetarenko
-Last Updated: May 30, 2021
+Last Updated: June 15, 2021
 '''
 
 #packages to import
@@ -1319,9 +1319,15 @@ mpl.rcParams['ytick.direction']='in'
 ax=plt.subplot(111)
 colors = cm.rainbow(np.linspace(0, 1, len(program_list)))
 colordict={'PI': 'y','LAP': 'm','UH': 'g','DDT': 'b',}
+table_list=[]
+tnames_list=[]
+table_list.append([x.strftime('%Y-%m-%d') for x in dats[0]])
+tnames.append('Block Date')
 #colordict['M16AL004']='gray'
 for jj in range(0,len(program_list)):
 	#colordict[program_list[jj]]=colors[jj]
+	table_list.append(np.array(pers[jj])*100.)
+	tnames.append(program_list[jj])
 	ax.plot(dats[jj],np.array(pers[jj])*100.,color=colors[jj],ls='-',marker='o',ms=3,label=program_list[jj])
 for j in range(0,len(blockst)):
 	ax.axvspan(blockst[j], blockend[j], facecolor=colordict[blockprog[j]], alpha=0.3)
@@ -1351,7 +1357,8 @@ ax.yaxis.set_minor_locator(AutoMinorLocator(5))
 ax.set_ylabel('${\\rm \\bf Completion\\,Percentage}\\,(\\%)}$',fontsize=12)
 ax.set_xlabel('${\\rm \\bf Time\\,(DD-MM-YYYY\\,HST)}$',fontsize=12)
 plt.savefig(path_dir+'sim_results/prog_completion.pdf',bbox_inches='tight')
-
+#program completion chart in tabular form
+ascii.write(table_list,path_dit+'sim_results/prog_completion_table.txt',names=tnames_list,overwrite=True)
 
 #append totals to results file and print to screen
 fileo=open(path_dir+'sim_results/results.txt','a')
