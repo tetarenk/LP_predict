@@ -767,8 +767,8 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 								targets.append(FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,\
 									dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 								tc.append(TimeConstraint(time_range[0], time_range[1]))
-								#if in M17BL002, and transits below 40 deg, set the elevation limit to 15 rather than 30 for the target so it is observed
-								if m == 'M17BL002':
+								#if in M17BL002/M20AL014, and transits below 40 deg, set the elevation limit to 15 rather than 30 for the target so it is observed
+								if m in ['M17BL002','M20AL014']:
 									el=elevationcheck(jcmt,obs_mjd[k],FixedTarget(coord=SkyCoord(ra=target_table['ra2000'][j]*u.rad,dec=target_table['dec2000'][j]*u.rad),name=target_table['target'][j]))
 									ta.append(AltitudeConstraint(min=el*u.deg))
 								else:
