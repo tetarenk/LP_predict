@@ -65,7 +65,7 @@ To run the wvm script on an EAO machine, input the date range in the script, the
 
 <img src="docs/201917.png" width="750" height="500" title='Example Schedule of a Band 2 Night'>
 
-*  Simulator results plots: including program results bar chart (shown below), program completion chart (shown below), time breakdown bar chart (shown below), unused LST histograms per weather band (shown below), LST histograms per weather band for remaining MSBs, remaining hours split by weather band for each program (shown below), remaining hours for all programs split by weather band and instrument (shown below), unused hrs per month split by weather band (shown below).
+*  Simulator results plots: including program results bar chart (shown below), program completion chart (shown below), time breakdown bar chart (shown below), unused LST histograms per weather band (shown below), LST histograms per weather band for remaining MSBs, remaining hours split by weather band for each program (shown below), remaining hours for all programs split by weather band and instrument (shown below), unused hrs per month for all programs split by weather band (shown below).
 
 <img src="docs/prog_results.png" width="500" height="350" title='Program Results'>
 <img src="docs/prog_completion.png" width="573" height="380" title='Program Completion'>
