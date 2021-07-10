@@ -14,7 +14,8 @@ OUTPUT: (1) File summary of simulation results detailing the predicted number of
         (4a) Histograms displaying unused RA range per weather band
         (4b) Histograms displaying remaining MSB RA range per weather band
         (5) Bar plot of totals (observed/remaining hrs) per program
-        (6) Bar plot of totals (used/unused/cals hrs) per weather band
+        (6a) Bar plot of totals (used/unused/cals hrs) per weather band
+        (6b) Bar plot of unused hours per month for LAPs, broken down by weather band
         (7) Incremental program completion chart (also available in tabular form)
         (8) Bar plot of totals (remaining hrs in each weather band) per program
         (9) Bar plot of total remaining hrs split by weather band and instrument
@@ -32,8 +33,6 @@ harp_un     HARP range of unavailable MJDs -- str 'MJD1,MJD2'
 rua_un      UU/AWEOWEO range of unavailable MJDs -- str 'MJD1,MJD2'
 dir         data directory (i.e., where script is stored) -- str '/path/to/dir/'
 
-Place this script and getwvm.py in dir before running.
-
 If you want to run this script on any machine you need to generate the following on an EAO machine first:
 (a) wvm file through the python script provided (getwvm.py).
 (b) LAP projects file and MSB files through the sql scripts provided (example-project-summary.sql and example-project-info.sql)
@@ -45,7 +44,7 @@ navigate to the `to_table` function in the `Schedule` class and edit line 303;
 i.e.,change u.Quantity(ra) and u.Quantity(dec) to ra and dec in the return statement.
 
 Written by: Alex J. Tetarenko
-Last Updated: June 15, 2021
+Last Updated: July 09, 2021
 '''
 
 #packages to import
@@ -62,6 +61,7 @@ import matplotlib.cm as cm
 import matplotlib.dates as mdates
 from matplotlib.dates import MONDAY
 import datetime as datetime
+from dateutil.relativedelta import relativedelta
 import astropy
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -349,7 +349,7 @@ def time_remain_p_weatherband(LAPprograms,path_dir):
 			else:
 				adds=round(np.sum(msbs['remaining'][ind2]*msbs['timeest'][ind2]/3600.),2)
 				#for when we over observe by a few minutes
-				if adds >0.:
+				if adds>0.:
 					remsi=inst[instruments[val]]+adds
 				else:
 					remsi=inst[instruments[val]]
@@ -419,7 +419,7 @@ def create_blocks(startdate,enddate):
 	blocks2=[]
 	priority=[]
 	sequence=['PI','LAP','PI','LAP','PI','LAP','PI','LAP','UH','DDT']
-	#sequence=['PI','PI','PI','PI','DDT']
+	#sequence=['LAP','LAP','LAP','LAP','LAP','LAP','LAP','LAP','UH','DDT']
 	list_cycle = cycle(sequence)
 	current=sdate
 	for i in range(delta.days + 1):
@@ -596,7 +596,7 @@ def good_blocks(Blocks,mjd_predict,tau_predict):
 	end=Blocks['date_end']
 	startmjd=Time(str(start)[0:4]+'-'+str(start)[4:6]+'-'+str(start)[6:8], format='iso', scale='utc').mjd
 	endmjd=Time(str(end)[0:4]+'-'+str(end)[4:6]+'-'+str(end)[6:8], format='iso', scale='utc').mjd
-	dates=np.arange(startmjd,endmjd,1)
+	dates=np.arange(startmjd,endmjd+1,1)
 	obs_mjd=mjd_predict[[i for i, item in enumerate(mjd_predict) if item in dates]]
 	tau_mjd=tau_predict[[i for i, item in enumerate(mjd_predict) if item in dates]]
 	return(obs_mjd,tau_mjd)
@@ -701,12 +701,13 @@ def check_semester(mjd):
 		sem=year+'B'
 	return(sem)
 
-def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total_observed,FP,m16al001_tally,m20al008_tally,\
-	SCUBA_2_unavailable,HARP_unavailable,RUA_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status):
+def predict_time(sim_start,sim_end,LAPprograms,Block,path_dir,total_observed,FP,m16al001_tally,m20al008_tally,\
+	SCUBA_2_unavailable,HARP_unavailable,RUA_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,\
+	finished_dates,status,mjd_predict,tau_predict):
 	'''Simulates observations of Large Programs over specified observing block.'''
 
 	#fetch wvm data from previous year(s)
-	mjd_predict,tau_predict=get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile)
+	#mjd_predict,tau_predict=get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile)
 
 	#get dates for observing block, make arrays of MJD and tau for these days
 	obs_mjd,tau_mjd=good_blocks(Block,mjd_predict,tau_predict)
@@ -714,6 +715,7 @@ def predict_time(sim_start,sim_end,wvmfile,LAPprograms,Block,path_dir,flag,total
 	#set up observatory site and general elevation constraints
 	jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
 
+	print('block:',obs_mjd)
 	#loop over all days in the current observing block
 	for k in range(0,len(obs_mjd)):
 		pb_targets=[]
@@ -1078,8 +1080,64 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 		ax.get_yaxis().set_label_coords(-0.2,0.5)
 	fig.subplots_adjust(wspace=0.5,hspace=1)
 	plt.savefig(path_dir+'sim_results/unused_RA_remaining.pdf',bbox_inches='tight')
-
-
+def transform_wbbar(wband,tt,dd,datestot,wb_usage_tally):
+	'''Transforms wb_usage_tally into per month basis for use by make_wb_breakdown()'''
+	time=np.array(dd)[np.where(np.array(tt)==wband)]
+	dt=[datetime.datetime.strptime(k, '%Y-%m-%d') for k in time]
+	val=[]
+	for date in datestot:
+		date_dt=datetime.datetime.fromordinal(date.toordinal())
+		ind=np.where(np.array([x.month for x in dt])==date_dt.month)[0]
+		if len(ind)!=0:
+			hrs=wb_usage_tally['Unused'][wband][1:]
+			val.append(np.sum(np.array(hrs)[ind]))
+		else:
+			val.append(0)
+	return(val)
+def make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict):
+	'''Make bar plot of unused hours per month for LAPs, broken down by weather band.'''
+	tt=[]
+	dd=[]
+	for i in range(0,len(OurBlocks)):
+		if OurBlocks['program'][i]=='LAP':
+			obs_mjd,tau_mjd=good_blocks(OurBlocks[i],mjd_predict,tau_predict)
+			dd.extend([Time(k,format='mjd').iso.split(' ')[0] for k in obs_mjd])
+			tt.extend([get_wband(k) for k in tau_mjd])
+	datestot=[]
+	cur_date=datetime.datetime.strptime('2021-01-01', '%Y-%m-%d').date()
+	end=datetime.datetime.strptime('2021-12-01', '%Y-%m-%d').date()
+	while cur_date <= end:
+		datestot.append(cur_date.replace(day=1))
+		cur_date += relativedelta(months=1)
+	B5=np.array(transform_wbbar('Band 5',tt,dd,datestot,wb_usage_tally))
+	B4=np.array(transform_wbbar('Band 4',tt,dd,datestot,wb_usage_tally))
+	B3=np.array(transform_wbbar('Band 3',tt,dd,datestot,wb_usage_tally))
+	B2=np.array(transform_wbbar('Band 2',tt,dd,datestot,wb_usage_tally))
+	B1=np.array(transform_wbbar('Band 1',tt,dd,datestot,wb_usage_tally))
+	fig=plt.figure()
+	font={'family':'serif','weight':'bold','size' : '14'}
+	rc('font',**font)
+	mpl.rcParams['xtick.direction']='in'
+	mpl.rcParams['ytick.direction']='in'
+	ax=plt.subplot(111)
+	ind = np.arange(len(datestot))
+	width = 0.35
+	p2=ax.bar(ind,B1,width,color='b',alpha=0.6,edgecolor='k',lw=1.2)
+	p3=ax.bar(ind,B2,width,bottom=B1,color='purple',edgecolor='k',lw=1.2,alpha=0.6)
+	p4=ax.bar(ind,B3,width,bottom=B1+B2,color='r',edgecolor='k',lw=1.2,alpha=0.6)
+	p5=ax.bar(ind,B4,width,bottom=B1+B2+B3,color='orange',edgecolor='k',lw=1.2,alpha=0.6)
+	p6=ax.bar(ind,B5,width,bottom=B1+B2+B3+B4,color='g',edgecolor='k',lw=1.2,alpha=0.6)
+	ax.set_xticks(ind)
+	ax.set_xticklabels([k.strftime('%B') for k in datestot])
+	ax.legend((p2[0],p3[0],p4[0],p5[0],p6[0]), ('Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5'),fontsize=7,bbox_to_anchor=(0.95,1.1),ncol=5)
+	ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='off',bottom='on',pad=7)
+	ax.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='on',left='on')
+	ax.tick_params(axis='y',which='minor', labelsize=9,length=3.5,width=1.,right='on',left='on',pad=7)
+	ax.set_ylabel('${\\rm \\bf Hours}$',fontsize=12)
+	#ax.get_yaxis().set_label_coords(-0.2,0.5)
+	ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+	plt.setp(ax.get_xticklabels(),rotation=45, horizontalalignment='right')
+	plt.savefig(path_dir+'sim_results/unused_bar_wb.pdf',bbox_inches='tight')
 #############################################################
 #Other options 
 #############################################################
@@ -1133,7 +1191,7 @@ if not os.path.isdir(os.path.join(path_dir, 'program_details_fix/')):
 if not os.path.isdir(os.path.join(path_dir, 'program_details_sim/')):
     os.mkdir(os.path.join(path_dir, "program_details_sim"))
 if not os.path.isdir(os.path.join(path_dir, 'sim_results/')):
-	os.mkdir(os.path.join(path_dir, "sim_results"))
+    os.mkdir(os.path.join(path_dir, "sim_results"))
     os.mkdir(os.path.join(path_dir, "sim_results/schedules"))
 
 #############################################################
@@ -1225,6 +1283,7 @@ os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_deta
 create_blocks(sim_start,sim_end)
 OurBlocks=ascii.read(path_dir+'model_obs_blocks.txt')
 
+
 #run observation simulator for each observing block
 total_observed = {k:v for k,v in zip(program_list,np.zeros(len(program_list)))}
 finished_dates = {k:'not finished' for k in program_list}
@@ -1249,12 +1308,14 @@ blockst=[]
 blockend=[]
 blockprog=[]
 status='not complete'
+#fetch wvm data from previous year(s)
+mjd_predict,tau_predict=get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile)
 for jj in range(0,len(OurBlocks)):
 	if status=='complete':
 		break
 	else:
 		FP=OurBlocks['program'][jj]
-		total_observed,m16al001_tally,m20al008_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status=predict_time(sim_start,sim_end,wvmfile,LAPprograms,OurBlocks[jj],path_dir,flag,total_observed,FP,m16al001_tally,m20al008_tally,SCUBA_2_unavailable,HARP_unavailable,RUA_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status)
+		total_observed,m16al001_tally,m20al008_tally,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status=predict_time(sim_start,sim_end,LAPprograms,OurBlocks[jj],path_dir,total_observed,FP,m16al001_tally,m20al008_tally,SCUBA_2_unavailable,HARP_unavailable,RUA_unavailable,wb_usage_tally,cal_tally,tot_tally,nothing_obs,lst_tally,finished_dates,status,mjd_predict,tau_predict)
 		dats,pers=incremental_comprate(program_list,dats,pers,OurBlocks[jj],total_observed,RH)
 		st=str(OurBlocks[jj]['date_start'])
 		en=str(OurBlocks[jj]['date_end'])
@@ -1322,12 +1383,12 @@ colordict={'PI': 'y','LAP': 'm','UH': 'g','DDT': 'b',}
 table_list=[]
 tnames_list=[]
 table_list.append([x.strftime('%Y-%m-%d') for x in dats[0]])
-tnames.append('Block Date')
+tnames_list.append('Block Date')
 #colordict['M16AL004']='gray'
 for jj in range(0,len(program_list)):
 	#colordict[program_list[jj]]=colors[jj]
 	table_list.append(np.array(pers[jj])*100.)
-	tnames.append(program_list[jj])
+	tnames_list.append(program_list[jj])
 	ax.plot(dats[jj],np.array(pers[jj])*100.,color=colors[jj],ls='-',marker='o',ms=3,label=program_list[jj])
 for j in range(0,len(blockst)):
 	ax.axvspan(blockst[j], blockend[j], facecolor=colordict[blockprog[j]], alpha=0.3)
@@ -1358,7 +1419,8 @@ ax.set_ylabel('${\\rm \\bf Completion\\,Percentage}\\,(\\%)}$',fontsize=12)
 ax.set_xlabel('${\\rm \\bf Time\\,(DD-MM-YYYY\\,HST)}$',fontsize=12)
 plt.savefig(path_dir+'sim_results/prog_completion.pdf',bbox_inches='tight')
 #program completion chart in tabular form
-ascii.write(table_list,path_dit+'sim_results/prog_completion_table.txt',names=tnames_list,overwrite=True)
+ascii.write(table_list,path_dir+'sim_results/prog_completion_table.txt', names=tnames_list, overwrite=True)
+
 
 #append totals to results file and print to screen
 fileo=open(path_dir+'sim_results/results.txt','a')
@@ -1539,6 +1601,9 @@ ax.set_ylabel('${\\rm \\bf Hours}$',fontsize=12)
 ax.yaxis.set_minor_locator(AutoMinorLocator(5))
 plt.setp(ax.get_xticklabels(),rotation=45, horizontalalignment='right')
 plt.savefig(path_dir+'sim_results/unused_bar.pdf',bbox_inches='tight')
+
+#make plot of unused hours per month for LAPs, broken down by weather band
+make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict)
 
 #make a plot of LST of remaining MSBs
 jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
