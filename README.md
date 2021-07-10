@@ -57,20 +57,23 @@ To run the wvm script on an EAO machine, input the date range in the script, the
 
 ## Simulator output:
 
-* Simulator results file: including allocated/observed/remaining hrs for each program, total observed hrs in simulation, total hrs lost to weather in simulation, program finish dates, program specific statistics (Transient - record of which months each target was observed, PITCH-BLACK - record of which semesters contained a campaign).
+* Simulator results file: including allocated/observed/remaining hrs for each program, total observed hrs in simulation, total hrs lost to weather in simulation, program finish dates, program specific statistics.
 * File tabulating a breakdown of available, used, and unused hours in each weather band during the simulation.
 * Files tabulating the remaining time in the large program queue after the simulation, split by weather band, instrument, and program.
+* File tabulating incremental progress of each large program throughout the simulation.
 * Schedules for each night in the simulation; table files and plots (shown below).
 
 <img src="docs/201917.png" width="750" height="500" title='Example Schedule of a Band 2 Night'>
 
-*  Simulator results plots: including program results bar chart (shown below), program completion chart (shown below), time breakdown bar chart (shown below), unused LST histograms per weather band (shown below), LST histograms per weather band for remaining MSBs, remaining hours split by weather band for each program (shown below), and remaining hours for all programs split by weather band and instrument (shown below).
+*  Simulator results plots: including program results bar chart (shown below), program completion chart (shown below), time breakdown bar chart (shown below), unused LST histograms per weather band (shown below), LST histograms per weather band for remaining MSBs, remaining hours split by weather band for each program (shown below), remaining hours for all programs split by weather band and instrument (shown below), unused hrs per month split by weather band (shown below).
 
 <img src="docs/prog_results.png" width="500" height="350" title='Program Results'>
 <img src="docs/prog_completion.png" width="573" height="380" title='Program Completion'>
 <img src="docs/unused_bar.png" width="476" height="390" title='Time Breakdown'>
+<img src="docs/unused_bar_wb.png" width="476" height="390" title='Unused hrs per Month'>
 <img src="docs/unused_RA.png" width="450" height="400" title='Unused LST'>
 <img src="docs/prog_remaining_progperwb.png" width="520" height="400" title='Remaining Hrs per Program'>
 <img src="docs/prog_remaining_wplusinst.png" width="500" height="400" title='Remaining Hrs by Weather Band and Instrument'>
+
 
 
