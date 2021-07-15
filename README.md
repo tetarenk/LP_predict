@@ -70,10 +70,10 @@ To run the wvm script on an EAO machine, input the date range in the script, the
 <img src="docs/prog_results.png" width="500" height="350" title='Program Results'>
 <img src="docs/prog_completion2.png" width="573" height="380" title='Program Completion'>
 <img src="docs/unused_bar.png" width="476" height="390" title='Time Breakdown'>
-<img src="docs/unused_bar_wb.png" width="476" height="390" title='Unused hrs per Month'>
 <img src="docs/unused_RA.png" width="450" height="400" title='Unused LST'>
 <img src="docs/prog_remaining_progperwb.png" width="520" height="400" title='Remaining Hrs per Program'>
 <img src="docs/prog_remaining_wplusinst.png" width="500" height="400" title='Remaining Hrs by Weather Band and Instrument'>
+<img src="docs/unused_bar_wb.png" width="476" height="390" title='Unused hrs per Month'>
 
 
 
