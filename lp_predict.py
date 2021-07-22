@@ -44,7 +44,7 @@ navigate to the `to_table` function in the `Schedule` class and edit line 303;
 i.e.,change u.Quantity(ra) and u.Quantity(dec) to ra and dec in the return statement.
 
 Written by: Alex J. Tetarenko
-Last Updated: July 09, 2021
+Last Updated: July 22, 2021
 '''
 
 #packages to import
@@ -159,7 +159,7 @@ class JCMTScheduler(Scheduler):
             b.observer = self.observer
         current_time = self.schedule.start_time
         while (len(blocks) > 0) and (current_time < self.schedule.end_time):
-            # first compute the value of all the constraints for each block
+            print(current_time)# first compute the value of all the constraints for each block
             # given the current starting time
             block_transitions = []
             block_constraint_results = []
@@ -418,8 +418,8 @@ def create_blocks(startdate,enddate):
 	blocks1=[]
 	blocks2=[]
 	priority=[]
-	sequence=['PI','LAP','PI','LAP','PI','LAP','PI','LAP','UH','DDT']
-	#sequence=['LAP','LAP','LAP','LAP','LAP','LAP','LAP','LAP','UH','DDT']
+	#sequence=['PI','LAP','PI','LAP','PI','LAP','PI','LAP','UH','DDT']
+	sequence=['LAP','LAP','LAP','LAP','LAP','LAP','LAP','LAP','UH','DDT']
 	list_cycle = cycle(sequence)
 	current=sdate
 	for i in range(delta.days + 1):
@@ -718,6 +718,7 @@ def predict_time(sim_start,sim_end,LAPprograms,Block,path_dir,total_observed,FP,
 	print('block:',obs_mjd)
 	#loop over all days in the current observing block
 	for k in range(0,len(obs_mjd)):
+		print('day:',obs_mjd[k])
 		pb_targets=[]
 		#A standard observing night will run from 5:30pm HST to 6:30am HST (13 hrs; times below are UTC!)
 		#if tau is at band 3 or better, EO is scheduled, and we observe till 10:30am HST (17 hrs)
@@ -1080,10 +1081,14 @@ def writeLSTremain(jcmt,prog_list,sim_end):
 		ax.get_yaxis().set_label_coords(-0.2,0.5)
 	fig.subplots_adjust(wspace=0.5,hspace=1)
 	plt.savefig(path_dir+'sim_results/unused_RA_remaining.pdf',bbox_inches='tight')
-def transform_wbbar(wband,tt,dd,datestot,wb_usage_tally):
+def transform_wbbar(wband,tt,dd,datestot,wb_usage_tally,sim_stop,status):
 	'''Transforms wb_usage_tally into per month basis for use by make_wb_breakdown()'''
-	time=np.array(dd)[np.where(np.array(tt)==wband)]
-	dt=[datetime.datetime.strptime(k, '%Y-%m-%d') for k in time]
+	time=np.array(dd)[np.where(np.array(tt)==wband)[0]]
+	if status=='complete':
+		timedt=[datetime.datetime.strptime(x,'%Y-%m-%d') for x in time]
+		dt=np.array(timedt)[np.array(timedt)<sim_stop]
+	else:
+		dt=[datetime.datetime.strptime(x,'%Y-%m-%d') for x in time]
 	val=[]
 	for date in datestot:
 		date_dt=datetime.datetime.fromordinal(date.toordinal())
@@ -1094,7 +1099,7 @@ def transform_wbbar(wband,tt,dd,datestot,wb_usage_tally):
 		else:
 			val.append(0)
 	return(val)
-def make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict):
+def make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict,sim_stop,status):
 	'''Make bar plot of unused hours per month for LAPs, broken down by weather band.'''
 	tt=[]
 	dd=[]
@@ -1109,11 +1114,11 @@ def make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict)
 	while cur_date <= end:
 		datestot.append(cur_date.replace(day=1))
 		cur_date += relativedelta(months=1)
-	B5=np.array(transform_wbbar('Band 5',tt,dd,datestot,wb_usage_tally))
-	B4=np.array(transform_wbbar('Band 4',tt,dd,datestot,wb_usage_tally))
-	B3=np.array(transform_wbbar('Band 3',tt,dd,datestot,wb_usage_tally))
-	B2=np.array(transform_wbbar('Band 2',tt,dd,datestot,wb_usage_tally))
-	B1=np.array(transform_wbbar('Band 1',tt,dd,datestot,wb_usage_tally))
+	B5=np.array(transform_wbbar('Band 5',tt,dd,datestot,wb_usage_tally,sim_stop,status))
+	B4=np.array(transform_wbbar('Band 4',tt,dd,datestot,wb_usage_tally,sim_stop,status))
+	B3=np.array(transform_wbbar('Band 3',tt,dd,datestot,wb_usage_tally,sim_stop,status))
+	B2=np.array(transform_wbbar('Band 2',tt,dd,datestot,wb_usage_tally,sim_stop,status))
+	B1=np.array(transform_wbbar('Band 1',tt,dd,datestot,wb_usage_tally,sim_stop,status))
 	fig=plt.figure()
 	font={'family':'serif','weight':'bold','size' : '14'}
 	rc('font',**font)
@@ -1312,6 +1317,7 @@ status='not complete'
 mjd_predict,tau_predict=get_wvm_data(sim_start,sim_end,flag,path_dir,wvmfile)
 for jj in range(0,len(OurBlocks)):
 	if status=='complete':
+		complete_date=OurBlocks[jj]
 		break
 	else:
 		FP=OurBlocks['program'][jj]
@@ -1322,6 +1328,7 @@ for jj in range(0,len(OurBlocks)):
 		blockst.append(datetime.datetime(int(st[0:4]),int(st[4:6]), int(st[6:8])))
 		blockend.append(datetime.datetime(int(en[0:4]),int(en[4:6]), int(en[6:8])))
 		blockprog.append(OurBlocks[jj]['program'])
+		complete_date=OurBlocks[jj]
 
 #calculate final results
 obs_hrs=[]
@@ -1430,6 +1437,10 @@ fileo.write("Total Hrs Available for Large Program Observing in Simulation (only
 fileo.write("Total Observed Hrs for Large Programs in Simulation: "+str(round(np.sum(obs_hrs),2))+'\n')
 fileo.write("Total Remaining Hrs for Large Programs after Simulation: "+str(round(np.sum(remaining_new),2))+'\n')
 fileo.write("Total Hrs lost to weather (i.e., nights where nothing observed in LAP queue):"+str(np.sum(nothing_obs))+'\n')
+if status=='complete':
+	fileo.write("All LAP programs were completed before the end of the simulation; by "+str(complete_date['date_end'])+'\n')
+else:
+	fileo.write("All programs DID NOT complete before the end of the simulation"+'\n')
 fileo.close()
 print("Total Allocated Hrs for Large Programs: ",round(np.sum(RH['allocated_hrs']),2))
 print("Total Remaining Hrs for Large Programs before Simulation: ",round(np.sum(RH['remaining_hrs']),2))
@@ -1437,6 +1448,10 @@ print("Total Hrs Available for Large Program Observing in Simulation (only LAP q
 print("Total Observed Hrs for Large Programs in Simulation: ",round(np.sum(obs_hrs),2))
 print("Total Remaining Hrs for Large Programs after Simulation: ",round(np.sum(remaining_new),2))
 print("Total Hrs lost to weather (i.e., nights where nothing observed in LAP queue):", np.sum(nothing_obs))
+if status=='complete':
+	print("All LAP programs were completed before the end of the simulation; by "+str(complete_date['date_end']))
+else:
+	print("All programs DID NOT complete before the end of the simulation")
 
 
 #write remaining hrs split by weather band, instrument, and program to file
@@ -1603,7 +1618,8 @@ plt.setp(ax.get_xticklabels(),rotation=45, horizontalalignment='right')
 plt.savefig(path_dir+'sim_results/unused_bar.pdf',bbox_inches='tight')
 
 #make plot of unused hours per month for LAPs, broken down by weather band
-make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict)
+sim_stop=datetime.datetime.strptime(str(complete_date['date_start']),'%Y%m%d')
+make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict,sim_stop,status)
 
 #make a plot of LST of remaining MSBs
 jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
