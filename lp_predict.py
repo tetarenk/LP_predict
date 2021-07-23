@@ -44,7 +44,7 @@ navigate to the `to_table` function in the `Schedule` class and edit line 303;
 i.e.,change u.Quantity(ra) and u.Quantity(dec) to ra and dec in the return statement.
 
 Written by: Alex J. Tetarenko
-Last Updated: July 22, 2021
+Last Updated: July 23, 2021
 '''
 
 #packages to import
@@ -418,8 +418,8 @@ def create_blocks(startdate,enddate):
 	blocks1=[]
 	blocks2=[]
 	priority=[]
-	#sequence=['PI','LAP','PI','LAP','PI','LAP','PI','LAP','UH','DDT']
-	sequence=['LAP','LAP','LAP','LAP','LAP','LAP','LAP','LAP','UH','DDT']
+	sequence=['PI','LAP','PI','LAP','PI','LAP','PI','LAP','UH','DDT']
+	#sequence=['LAP','LAP','LAP','LAP','LAP','LAP','LAP','LAP','UH','DDT']
 	list_cycle = cycle(sequence)
 	current=sdate
 	for i in range(delta.days + 1):
@@ -1457,66 +1457,67 @@ else:
 #write remaining hrs split by weather band, instrument, and program to file
 wb_tot,inst_tot,remain_tot=time_remain_p_weatherband(LAPprograms,path_dir)
 
-#plot remaining hrs split by weather band for each program
-fig=plt.figure()
-font={'family':'serif','weight':'bold','size' : '14'}
-rc('font',**font)
-mpl.rcParams['xtick.direction']='in'
-mpl.rcParams['ytick.direction']='in'
-ax=plt.subplot(111)
-progs=[i for i in RH['projectid']]
-obswb2=[]
-for m in progs:
-	obswb2.append([remain_tot[m.upper()][i] for i in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']])
-ypos = np.arange(len(progs))
-width = 0.45
-p1=ax.barh(ypos,[obswb2[i][0] for i in ypos],width,color='b',edgecolor='k',lw=0.5,alpha=0.6)
-p2=ax.barh(ypos,[obswb2[i][1] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos]),color='purple',edgecolor='k',lw=0.5,alpha=0.6)
-p3=ax.barh(ypos,[obswb2[i][2] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos]),color='r',edgecolor='k',lw=0.5,alpha=0.6)
-p4=ax.barh(ypos,[obswb2[i][3] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos])+np.array([obswb2[i][2] for i in ypos]),color='orange',edgecolor='k',lw=0.5,alpha=0.6)
-p5=ax.barh(ypos,[obswb2[i][4] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos])+np.array([obswb2[i][2] for i in ypos])+np.array([obswb2[i][3] for i in ypos]),color='g',edgecolor='k',lw=0.5,alpha=0.6)
-ax.set_yticks(ypos)
-ax.set_yticklabels(progs)
-ax.legend((p1[0],p2[0],p3[0],p4[0],p5[0]), ('Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5'),fontsize=7,loc='top right',ncol=1)
-ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
-ax.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
-ax.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
-ax.set_xlabel('${\\rm \\bf Hours}$',fontsize=12)
-ax.xaxis.set_minor_locator(AutoMinorLocator(10))
-fig.subplots_adjust(wspace=0.5,hspace=1)
-plt.savefig(path_dir+'sim_results/prog_remaining_progperwb.pdf',bbox_inches='tight')
+if status!='complete':
+	#plot remaining hrs split by weather band for each program
+	fig=plt.figure()
+	font={'family':'serif','weight':'bold','size' : '14'}
+	rc('font',**font)
+	mpl.rcParams['xtick.direction']='in'
+	mpl.rcParams['ytick.direction']='in'
+	ax=plt.subplot(111)
+	progs=[i for i in RH['projectid']]
+	obswb2=[]
+	for m in progs:
+		obswb2.append([remain_tot[m.upper()][i] for i in ['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']])
+	ypos = np.arange(len(progs))
+	width = 0.45
+	p1=ax.barh(ypos,[obswb2[i][0] for i in ypos],width,color='b',edgecolor='k',lw=0.5,alpha=0.6)
+	p2=ax.barh(ypos,[obswb2[i][1] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos]),color='purple',edgecolor='k',lw=0.5,alpha=0.6)
+	p3=ax.barh(ypos,[obswb2[i][2] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos]),color='r',edgecolor='k',lw=0.5,alpha=0.6)
+	p4=ax.barh(ypos,[obswb2[i][3] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos])+np.array([obswb2[i][2] for i in ypos]),color='orange',edgecolor='k',lw=0.5,alpha=0.6)
+	p5=ax.barh(ypos,[obswb2[i][4] for i in ypos],width,left=np.array([obswb2[i][0] for i in ypos])+np.array([obswb2[i][1] for i in ypos])+np.array([obswb2[i][2] for i in ypos])+np.array([obswb2[i][3] for i in ypos]),color='g',edgecolor='k',lw=0.5,alpha=0.6)
+	ax.set_yticks(ypos)
+	ax.set_yticklabels(progs)
+	ax.legend((p1[0],p2[0],p3[0],p4[0],p5[0]), ('Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5'),fontsize=7,loc='top right',ncol=1)
+	ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
+	ax.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
+	ax.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
+	ax.set_xlabel('${\\rm \\bf Hours}$',fontsize=12)
+	ax.xaxis.set_minor_locator(AutoMinorLocator(10))
+	fig.subplots_adjust(wspace=0.5,hspace=1)
+	plt.savefig(path_dir+'sim_results/prog_remaining_progperwb.pdf',bbox_inches='tight')
 
-#plot remaining hrs per weather band and per instrument for all programs
-fig=plt.figure()
-font={'family':'serif','weight':'bold','size' : '14'}
-rc('font',**font)
-mpl.rcParams['xtick.direction']='in'
-mpl.rcParams['ytick.direction']='in'
-ax=plt.subplot(121)
-ax2=plt.subplot(122)
-bands=[wb_tot[i] for i in list(wb_tot.keys())]
-insts=[inst_tot[i] for i in list(inst_tot.keys())]
-ypos1 = np.arange(len(bands))
-ypos2 = np.arange(len(insts))
-width = 0.45
-p1=ax.barh(ypos1,bands,width,color='b',edgecolor='k',lw=0.5,alpha=0.6)
-p2=ax2.barh(ypos2,insts,width,color='orange',edgecolor='k',lw=0.5,alpha=0.6)
-ax.set_yticks(ypos1)
-ax.set_yticklabels([i for i in list(wb_tot.keys())])
-ax2.set_yticks(ypos2)
-ax2.set_yticklabels([i for i in list(inst_tot.keys())])
-ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
-ax.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
-ax.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
-ax2.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
-ax2.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
-ax2.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
-ax.set_xlabel('${\\rm \\bf Remaining\\,\\,Hours}$',fontsize=12)
-ax.xaxis.set_label_coords(1.3,-0.1)
-ax.xaxis.set_minor_locator(AutoMinorLocator(5))
-ax2.xaxis.set_minor_locator(AutoMinorLocator(5))
-fig.subplots_adjust(wspace=0.5,hspace=1)
-plt.savefig(path_dir+'sim_results/prog_remaining_wplusinst.pdf',bbox_inches='tight')
+	#plot remaining hrs per weather band and per instrument for all programs
+	fig=plt.figure()
+	font={'family':'serif','weight':'bold','size' : '14'}
+	rc('font',**font)
+	mpl.rcParams['xtick.direction']='in'
+	mpl.rcParams['ytick.direction']='in'
+	ax=plt.subplot(121)
+	ax2=plt.subplot(122)
+	bands=[wb_tot[i] for i in list(wb_tot.keys())]
+	insts=[inst_tot[i] for i in list(inst_tot.keys())]
+	ypos1 = np.arange(len(bands))
+	ypos2 = np.arange(len(insts))
+	width = 0.45
+	p1=ax.barh(ypos1,bands,width,color='b',edgecolor='k',lw=0.5,alpha=0.6)
+	p2=ax2.barh(ypos2,insts,width,color='orange',edgecolor='k',lw=0.5,alpha=0.6)
+	ax.set_yticks(ypos1)
+	ax.set_yticklabels([i for i in list(wb_tot.keys())])
+	ax2.set_yticks(ypos2)
+	ax2.set_yticklabels([i for i in list(inst_tot.keys())])
+	ax.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
+	ax.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
+	ax.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
+	ax2.tick_params(axis='x',which='major', labelsize=9,length=5,width=1.5,top='on',bottom='on',pad=7)
+	ax2.tick_params(axis='x',which='minor', labelsize=9,length=3.5,width=1.,top='on',bottom='on',pad=7)
+	ax2.tick_params(axis='y',which='major', labelsize=10,length=5,width=1.5,right='off',left='on')
+	ax.set_xlabel('${\\rm \\bf Remaining\\,\\,Hours}$',fontsize=12)
+	ax.xaxis.set_label_coords(1.3,-0.1)
+	ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+	ax2.xaxis.set_minor_locator(AutoMinorLocator(5))
+	fig.subplots_adjust(wspace=0.5,hspace=1)
+	plt.savefig(path_dir+'sim_results/prog_remaining_wplusinst.pdf',bbox_inches='tight')
 
 #optionally print out month/year combos that each source in the Transient program (m16al001,m20al007) was observed to screen and append to results file
 print('\nTransient (M16AL001/M20AL007) Tally:\n')
@@ -1621,6 +1622,7 @@ plt.savefig(path_dir+'sim_results/unused_bar.pdf',bbox_inches='tight')
 sim_stop=datetime.datetime.strptime(str(complete_date['date_start']),'%Y%m%d')
 make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict,sim_stop,status)
 
-#make a plot of LST of remaining MSBs
-jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
-writeLSTremain(jcmt,program_list,sim_end)
+if status!='complete':
+	#make a plot of LST of remaining MSBs
+	jcmt=Observer.at_site("JCMT",timezone="US/Hawaii")
+	writeLSTremain(jcmt,program_list,sim_end)
