@@ -1143,6 +1143,13 @@ def make_wb_breakdown(path_dir,OurBlocks,wb_usage_tally,mjd_predict,tau_predict,
 	ax.yaxis.set_minor_locator(AutoMinorLocator(5))
 	plt.setp(ax.get_xticklabels(),rotation=45, horizontalalignment='right')
 	plt.savefig(path_dir+'sim_results/unused_bar_wb.pdf',bbox_inches='tight')
+	fileo=open(path_dir+'sim_results/unused_bar_wb_data.txt','w')
+	fileo.write('#Bands: '+",".join(item for item in[k.strftime('%B') for k in datestot])+'\n')
+	data=[B1,B2,B3,B4,B5]
+	bandname=['Band 1', 'Band 2', 'Band 3', 'Band 4', 'Band 5']
+	for i in range(0,len(bandname)):
+		fileo.write(bandname[i]+': '+",".join(str(item) for item in data[i])+'\n')
+	fileo.close()
 #############################################################
 #Other options 
 #############################################################
@@ -1287,7 +1294,6 @@ os.system('cp -r '+path_dir+'program_details_fix/*.list '+path_dir+'program_deta
 #calculate observing blocks within the selected simulation dates
 create_blocks(sim_start,sim_end)
 OurBlocks=ascii.read(path_dir+'model_obs_blocks.txt')
-
 
 #run observation simulator for each observing block
 total_observed = {k:v for k,v in zip(program_list,np.zeros(len(program_list)))}
