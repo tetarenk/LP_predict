@@ -44,7 +44,7 @@ navigate to the `to_table` function in the `Schedule` class and edit line 303;
 i.e.,change u.Quantity(ra) and u.Quantity(dec) to ra and dec in the return statement.
 
 Written by: Alex J. Tetarenko
-Last Updated: July 23, 2021
+Last Updated: Aug 08, 2021
 '''
 
 #packages to import
